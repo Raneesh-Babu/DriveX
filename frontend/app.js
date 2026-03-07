@@ -87,12 +87,10 @@ async function init() {
   }
 }
 
-// Resolve the WalletConnect EthereumProvider class from its UMD global
+// Resolve WalletConnect EthereumProvider — set by ES module in index.html
 function resolveWCProvider() {
-  const mod = window.WalletConnectEthereumProvider;
-  if (!mod) return null;
-  // UMD bundle may export: { EthereumProvider } | { default: EthereumProvider } | the class itself
-  return mod.EthereumProvider || mod.default?.EthereumProvider || mod.default || (typeof mod === 'function' ? mod : null);
+  // window.__WCEthProvider is set by the <script type="module"> in index.html
+  return window.__WCEthProvider || null;
 }
 
 // Shared WalletConnect configuration
@@ -114,24 +112,31 @@ function wcConfig() {
 
 // Connect via WalletConnect (mobile Chrome flow)
 async function connectWalletConnect() {
-  const EthProvider = resolveWCProvider();
+  g('loginLoader').style.display = 'block';
+
+  // The ESM module loads asynchronously; wait up to 3s for it to be ready
+  let EthProvider = resolveWCProvider();
   if (!EthProvider) {
-    alert('WalletConnect library failed to load. Please refresh and try again.');
+    for (let i = 0; i < 30 && !EthProvider; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      EthProvider = resolveWCProvider();
+    }
+  }
+
+  if (!EthProvider) {
+    g('loginLoader').style.display = 'none';
+    // WC failed to load — show styled deep-link modal as reliable fallback
+    showMobileDeeplinkModal();
     return;
   }
-  try {
-    g('loginLoader').style.display = 'block';
-    wcProvider = await EthProvider.init(wcConfig());
 
-    // .connect() opens the QR modal; on mobile MetaMask shows a deep-link button
-    await wcProvider.connect({
-      chains: [SEPOLIA_CHAIN_ID],
-    });
+  try {
+    wcProvider = await EthProvider.init(wcConfig());
+    await wcProvider.connect({ chains: [SEPOLIA_CHAIN_ID] });
 
     const accounts = wcProvider.accounts;
     if (!accounts || accounts.length === 0) throw new Error('No accounts returned.');
 
-    // Switch to Sepolia inside WC session if needed
     try {
       const chainId = await wcProvider.request({ method: 'eth_chainId' });
       if (parseInt(chainId, 16) !== SEPOLIA_CHAIN_ID) {
@@ -146,11 +151,38 @@ async function connectWalletConnect() {
   } catch (e) {
     if (wcProvider) { try { await wcProvider.disconnect(); } catch (_) { } wcProvider = null; }
     if (!e.message?.includes('User rejected') && e.code !== 4001) {
-      alert('WalletConnect error: ' + e.message);
+      alert('Connection error: ' + e.message);
     }
   } finally {
     g('loginLoader').style.display = 'none';
   }
+}
+
+// Fallback modal: styled deep-link bottom-sheet (used when WC library fails to load)
+function showMobileDeeplinkModal() {
+  if (g('mmDeeplinkModal')) return;
+  const dappUrl = window.location.href.replace(/^https?:\/\//, '');
+  const deepLink = 'https://metamask.app.link/dapp/' + dappUrl;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'mmDeeplinkModal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:#1e1b2e;border:1px solid rgba(167,139,250,0.3);border-radius:24px 24px 16px 16px;padding:32px 24px 28px;width:100%;max-width:440px;text-align:center;box-shadow:0 -8px 40px rgba(109,40,217,0.3);font-family:'Outfit',sans-serif;color:#f8fafc;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" style="width:64px;margin-bottom:16px;" />
+      <h3 style="margin:0 0 8px;font-size:1.3rem;">Connect with MetaMask</h3>
+      <p style="color:#94a3b8;font-size:0.9rem;margin:0 0 24px;line-height:1.6;">
+        Tap the button below to open DriveX inside the MetaMask app browser.<br/>
+        Your wallet will connect automatically &mdash; then you can use all features.
+      </p>
+      <a href="${deepLink}" style="display:block;padding:16px;border-radius:14px;font-size:1rem;font-weight:600;font-family:inherit;background:linear-gradient(135deg,#6d28d9,#e81cff);color:#fff;text-decoration:none;margin-bottom:14px;box-shadow:0 4px 15px rgba(109,40,217,0.5);">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" style="width:22px;vertical-align:middle;margin-right:8px;"/>Open in MetaMask
+      </a>
+      <button onclick="document.getElementById('mmDeeplinkModal').remove()" style="background:transparent;border:none;color:#64748b;font-family:inherit;font-size:0.9rem;cursor:pointer;padding:8px;">Cancel</button>
+      <p style="margin:14px 0 0;font-size:0.78rem;color:#475569;">Don't have MetaMask? <a href="https://metamask.io/download/" target="_blank" style="color:#a78bfa;">Install free</a></p>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // Compute Hash
