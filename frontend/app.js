@@ -20,10 +20,9 @@ let currentActionFile = null;
 let shareMode = 'view';
 let currentZoom = 1;
 
-// Detect mobile browser (not MetaMask in-app browser)
-function isMobileBrowser() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
+// Active ethereum provider (MetaMask SDK or native extension)
+let ethereumProvider = null;
+let mmSDK = null;
 
 const CONTRACT_ABI = [
   "function addFile(string name,string cid,uint256 size,string mime,bytes32 contentHash,string category,uint256 price,string folder) public returns (uint256)",
@@ -58,9 +57,37 @@ async function init() {
       await runPublicVerification(file);
     });
 
-    // Auto-reconnect if already approved (works on desktop + MetaMask mobile in-app browser)
+    // ── Provider Setup ────────────────────────────────────────────────────────
+    // If window.ethereum already exists (desktop extension or MetaMask in-app
+    // browser) use it directly — fastest path.
+    // Otherwise init the MetaMask SDK which shows a QR/modal inside Chrome
+    // WITHOUT redirecting the user away from the browser.
     if (window.ethereum) {
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => []);
+      // Desktop extension OR MetaMask mobile in-app browser
+      ethereumProvider = window.ethereum;
+    } else if (typeof MetaMaskSDK !== 'undefined') {
+      // Mobile Chrome / Safari – SDK shows connection modal in-page
+      const SDKClass = typeof MetaMaskSDK === 'function'
+        ? MetaMaskSDK
+        : MetaMaskSDK.MetaMaskSDK;
+      mmSDK = new SDKClass({
+        dappMetadata: {
+          name: 'DriveX',
+          url: window.location.href,
+        },
+        useDeeplink: false,   // show modal/QR inside the browser, don't redirect
+        preferDesktop: false, // allow mobile connection
+        logging: { developerMode: false },
+      });
+      ethereumProvider = mmSDK.getProvider();
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Auto-reconnect if wallet was already approved in a previous session
+    if (ethereumProvider) {
+      const accounts = await ethereumProvider
+        .request({ method: 'eth_accounts' })
+        .catch(() => []);
       if (accounts && accounts.length > 0) {
         await setupWallet(accounts[0]);
       }
@@ -122,7 +149,8 @@ async function runPublicVerification(file) {
 
 async function setupWallet(account) {
   currentAccount = account;
-  provider = new ethers.providers.Web3Provider(window.ethereum);
+  // Use the SDK provider or fall back to the native window.ethereum
+  provider = new ethers.providers.Web3Provider(ethereumProvider || window.ethereum);
   signer = provider.getSigner();
   contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
 
@@ -134,34 +162,30 @@ async function setupWallet(account) {
 }
 
 g('loginConnectBtn').addEventListener('click', async () => {
-  // ── MOBILE: no MetaMask extension in normal Chrome/Safari ─────────────────
-  // Redirect the user to open this exact page inside the MetaMask mobile app.
-  // Once inside MetaMask's browser, window.ethereum is injected and the
-  // normal connect flow below runs automatically on next page load.
-  if (!window.ethereum) {
-    if (isMobileBrowser()) {
-      // Build the deep-link: strips protocol so metamask.app.link can prefix it
-      const dappUrl = window.location.href.replace(/^https?:\/\//, '');
-      window.location.href = 'https://metamask.app.link/dapp/' + dappUrl;
-      return;
-    }
-    // Desktop without extension
+  const eth = ethereumProvider || window.ethereum;
+
+  if (!eth) {
+    // No provider at all — SDK failed to load and no native extension
     return alert(
-      'MetaMask extension not found.\n\n' +
-      'Please install the MetaMask browser extension and refresh the page.'
+      'MetaMask not detected.\n\n' +
+      'Please install the MetaMask app (mobile) or the MetaMask browser extension (desktop).'
     );
   }
 
-  // ── DESKTOP (or MetaMask mobile in-app browser) ────────────────────────────
   try {
     g('loginLoader').style.display = 'block';
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+    // On mobile Chrome, this triggers the MetaMask SDK modal (QR/deep-link)
+    // that stays within Chrome — user taps "Connect" in the SDK overlay,
+    // MetaMask app opens briefly to approve, then returns to Chrome.
+    // On desktop, this triggers the extension popup as before.
+    await eth.request({ method: 'eth_requestAccounts' });
 
     // Switch to Sepolia if needed
     try {
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const chainId = await eth.request({ method: 'eth_chainId' });
       if (chainId !== '0xaa36a7') {
-        await window.ethereum.request({
+        await eth.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: '0xaa36a7' }],
         });
@@ -170,10 +194,10 @@ g('loginConnectBtn').addEventListener('click', async () => {
       console.warn('Chain switch failed:', chainErr);
     }
 
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    const accounts = await eth.request({ method: 'eth_accounts' });
     if (accounts && accounts.length) await setupWallet(accounts[0]);
   } catch (e) {
-    if (e.code !== 4001) {
+    if (e.code !== 4001) { // 4001 = user rejected — silent
       alert('Connection error: ' + e.message);
     }
   } finally {
