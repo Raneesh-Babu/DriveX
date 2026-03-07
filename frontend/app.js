@@ -20,6 +20,10 @@ let currentActionFile = null;
 let shareMode = 'view';
 let currentZoom = 1;
 
+// AppKit (Web3Modal) Instance
+let appKitModal = null;
+const WC_PROJECT_ID = '7c2f28c5c7f8ec07d0dd0aa8f2c9a739';
+
 // Detect mobile browser
 function isMobileBrowser() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -56,16 +60,52 @@ async function init() {
       await runPublicVerification(e.target.files[0]);
     });
 
-    // Auto-reconnect: desktop extension
-    if (window.ethereum) {
+    // Initialize Reown AppKit (Web3Modal) for mobile Chrome
+    if (typeof window.AppKit !== 'undefined' && window.AppKit.createAppKit) {
+      const sepoliaNetwork = {
+        id: 11155111,
+        name: 'Sepolia',
+        network: 'sepolia',
+        nativeCurrency: { name: 'Sepolia Ether', symbol: 'SEP', decimals: 18 },
+        rpcUrls: { default: { http: ['https://rpc.sepolia.org'] } },
+        blockExplorers: { default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' } }
+      };
+
+      appKitModal = window.AppKit.createAppKit({
+        adapters: [new window.AppKit.EthersAdapter()],
+        networks: [sepoliaNetwork],
+        metadata: {
+          name: 'DriveX',
+          description: 'Decentralized File Storage',
+          url: window.location.origin,
+          icons: ['https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg']
+        },
+        projectId: WC_PROJECT_ID,
+        features: { email: false, socials: false },
+        themeMode: 'dark'
+      });
+
+      // Auto-reconnect AppKit
+      appKitModal.subscribeState(state => {
+        if (state.connected && !currentAccount) {
+          const provider = appKitModal.getWalletProvider();
+          if (provider) {
+            provider.request({ method: 'eth_accounts' }).then(accounts => {
+              if (accounts[0]) setupWallet(accounts[0], new ethers.providers.Web3Provider(provider));
+            });
+          }
+        }
+      });
+    }
+
+    // Auto-reconnect: desktop extension or injected provider
+    if (window.ethereum && !appKitModal?.getState()?.connected) {
       const accounts = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => []);
       if (accounts && accounts.length > 0) {
         await setupWallet(accounts[0], new ethers.providers.Web3Provider(window.ethereum));
         return;
       }
     }
-
-
   } catch (err) {
     console.error('Initialization error:', err);
   }
@@ -138,22 +178,29 @@ async function setupWallet(account, ethersProvider) {
 }
 
 g('loginConnectBtn').addEventListener('click', async () => {
+  // Mobile Chrome / no injected extension
   if (!window.ethereum) {
-    if (isMobileBrowser()) {
-      // 100% foolproof deep-link redirect for mobile without window.ethereum
+    if (appKitModal) {
+      // Opens the WalletConnect beautiful in-browser UI
+      await appKitModal.open();
+      // The subscribeState listener in init() handles the successful connection
+      return;
+    } else if (isMobileBrowser()) {
+      // Absolute fallback if CDN failed
       const dappUrl = window.location.href.replace(/^https?:\/\//, '');
       window.location.href = 'https://metamask.app.link/dapp/' + dappUrl;
       return;
     }
     return alert('MetaMask not found. Please install the browser extension.');
   }
-  // Desktop MetaMask extension
+
+  // Desktop MetaMask extension (or in-app browser)
   try {
     g('loginLoader').style.display = 'block';
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     try {
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      if (chainId !== '0xaa36a7') {
+      if (chainId !== '0xaa36a7' && chainId !== '11155111') {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: '0xaa36a7' }],
@@ -182,6 +229,9 @@ g('signoutBtn').addEventListener('click', async () => {
   g('categoryFilter').value = 'All';
   currentCategoryFilter = 'All';
 
+  if (appKitModal && appKitModal.getState().connected) {
+    try { await appKitModal.disconnect(); } catch (_) { }
+  }
 
   g('publicScreen').classList.remove('hidden');
   g('appLayout').style.display = 'none';
