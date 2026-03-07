@@ -981,6 +981,10 @@
       #previewModal .modal {
         height: 85vh !important;
       }
+
+      #mobileHint {
+        display: block !important;
+      }
     }
   </style>
 </head>
@@ -1051,6 +1055,14 @@
             <div id="loginLoader" class="loader"
               style="display:none; width:20px; height:20px; border-width:2px; margin-left:8px;"></div>
           </button>
+          <!-- Mobile install hint – hidden on desktop via media query -->
+          <p id="mobileHint"
+            style="display:none; margin-top:16px; font-size:0.85rem; color:var(--muted); text-align:center;">
+            On mobile Chrome? <a href="https://metamask.app.link/dapp/" target="_blank" style="color:#a78bfa;">Open in
+              MetaMask</a>
+            &nbsp;or&nbsp;
+            <a href="https://metamask.io/download/" target="_blank" style="color:#a78bfa;">Install MetaMask</a> first.
+          </p>
         </div>
       </div>
     </div>
@@ -1237,7 +1249,8 @@
       <h2>Delete Folder</h2>
       <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
         <strong id="deleteFolderTargetName">this folder</strong> and all of its contents from the blockchain? This
-        action cannot be undone.</p>
+        action cannot be undone.
+      </p>
 
       <div class="form-group" style="margin-top:12px;">
         <button id="confirmFolderDeleteBtn" class="btn btn-danger"
@@ -1324,7 +1337,9 @@
     </div>
   </div>
 
-  <script src="/libs/ethers/ethers.umd.min.js"></script>
+  <!-- MetaMask SDK: enables QR-code/deep-link connection on mobile browsers -->
+  <script src="https://cdn.jsdelivr.net/npm/@metamask/sdk@0.34.0/dist/browser/umd/metamask-sdk.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 

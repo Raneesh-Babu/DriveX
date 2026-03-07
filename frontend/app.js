@@ -20,6 +20,10 @@ let currentActionFile = null;
 let shareMode = 'view';
 let currentZoom = 1;
 
+// MetaMask SDK – initialized in init()
+let sdk = null;
+let ethereumProvider = null;
+
 const CONTRACT_ABI = [
   "function addFile(string name,string cid,uint256 size,string mime,bytes32 contentHash,string category,uint256 price,string folder) public returns (uint256)",
   "function getFilesByOwner(address owner) public view returns (uint256[])",
@@ -53,11 +57,36 @@ async function init() {
       await runPublicVerification(file);
     });
 
-    if (window.ethereum && window.ethereum.selectedAddress) {
-      await setupWallet(window.ethereum.selectedAddress);
+    // ── MetaMask SDK Setup ──────────────────────────────────────────────────
+    // The SDK transparently wraps window.ethereum on desktop (extension present)
+    // and provides a QR-code / deep-link popup on mobile browsers without the extension.
+    if (typeof MetaMaskSDK !== 'undefined') {
+      sdk = new MetaMaskSDK.MetaMaskSDK({
+        dappMetadata: {
+          name: 'DriveX',
+          url: window.location.href,
+        },
+        // Logging off for production
+        logging: { developerMode: false },
+      });
+      // Wait for the SDK to be ready, then grab the provider it exposes
+      await sdk.init();
+      ethereumProvider = sdk.getProvider();
+    } else {
+      // Fallback: use raw window.ethereum (MetaMask extension direct)
+      ethereumProvider = window.ethereum || null;
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
+    // Auto-reconnect if the user was already connected
+    if (ethereumProvider) {
+      const accounts = await ethereumProvider.request({ method: 'eth_accounts' }).catch(() => []);
+      if (accounts && accounts.length > 0) {
+        await setupWallet(accounts[0]);
+      }
     }
   } catch (err) {
-    console.error("Initialization error", err);
+    console.error('Initialization error', err);
   }
 }
 
@@ -113,7 +142,8 @@ async function runPublicVerification(file) {
 
 async function setupWallet(account) {
   currentAccount = account;
-  provider = new ethers.providers.Web3Provider(window.ethereum);
+  // Use the SDK-provided (or fallback) ethereum provider so it works on mobile too
+  provider = new ethers.providers.Web3Provider(ethereumProvider || window.ethereum);
   signer = provider.getSigner();
   contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
 
@@ -125,18 +155,50 @@ async function setupWallet(account) {
 }
 
 g('loginConnectBtn').addEventListener('click', async () => {
-  if (!window.ethereum) return alert('Install MetaMask');
+  // If SDK isn't loaded yet and there's no native window.ethereum, guide the user.
+  if (!ethereumProvider && !window.ethereum) {
+    return alert(
+      'MetaMask not detected.\n\n' +
+      'On mobile: Install the MetaMask app, then open this site from inside the MetaMask browser.\n\n' +
+      'On desktop: Install the MetaMask browser extension.'
+    );
+  }
+
+  const eth = ethereumProvider || window.ethereum;
+
   try {
     g('loginLoader').style.display = 'block';
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    if (chainId !== '0xAA36A7') {
-      try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xAA36A7' }] }); } catch (e) { }
+
+    // sdk.connect() handles the QR-code/deep-link flow on mobile;
+    // on desktop it just triggers the extension popup like before.
+    if (sdk) {
+      await sdk.connect();
+    } else {
+      await eth.request({ method: 'eth_requestAccounts' });
     }
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-    if (accounts.length) await setupWallet(accounts[0]);
-  } catch (e) { alert(e.message); }
-  finally { g('loginLoader').style.display = 'none'; }
+
+    // Switch to Sepolia if needed
+    try {
+      const chainId = await eth.request({ method: 'eth_chainId' });
+      if (chainId !== '0xaa36a7') {
+        await eth.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xaa36a7' }],
+        });
+      }
+    } catch (chainErr) {
+      console.warn('Chain switch failed:', chainErr);
+    }
+
+    const accounts = await eth.request({ method: 'eth_accounts' });
+    if (accounts && accounts.length) await setupWallet(accounts[0]);
+  } catch (e) {
+    if (e.code !== 4001) { // 4001 = user rejected — no need to alert
+      alert('Connection error: ' + e.message);
+    }
+  } finally {
+    g('loginLoader').style.display = 'none';
+  }
 });
 
 g('signoutBtn').addEventListener('click', () => {
