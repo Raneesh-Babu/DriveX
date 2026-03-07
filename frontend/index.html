@@ -1055,13 +1055,13 @@
             <div id="loginLoader" class="loader"
               style="display:none; width:20px; height:20px; border-width:2px; margin-left:8px;"></div>
           </button>
-          <!-- Mobile install hint – hidden on desktop via media query -->
+          <!-- Mobile hint: shown on small screens only (CSS media query) -->
           <p id="mobileHint"
             style="display:none; margin-top:16px; font-size:0.85rem; color:var(--muted); text-align:center;">
-            On mobile Chrome? <a href="https://metamask.app.link/dapp/" target="_blank" style="color:#a78bfa;">Open in
-              MetaMask</a>
-            &nbsp;or&nbsp;
-            <a href="https://metamask.io/download/" target="_blank" style="color:#a78bfa;">Install MetaMask</a> first.
+            📱 On mobile, tapping the button will open this site inside the
+            <strong style="color:#a78bfa;">MetaMask app</strong> automatically.
+            Don't have it? <a href="https://metamask.io/download/" target="_blank" style="color:#a78bfa;">Install
+              MetaMask</a>.
           </p>
         </div>
       </div>
@@ -1337,8 +1337,6 @@
     </div>
   </div>
 
-  <!-- MetaMask SDK: enables QR-code/deep-link connection on mobile browsers -->
-  <script src="https://cdn.jsdelivr.net/npm/@metamask/sdk@0.34.0/dist/browser/umd/metamask-sdk.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
