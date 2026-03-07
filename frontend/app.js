@@ -10,7 +10,7 @@ let currentView = 'myfiles';
 let currentFolder = '/';
 let currentCategoryFilter = 'All';
 let currentSearchQuery = '';
-let virtualFolders = []; // array of purely visual empty folder paths created by the user
+let virtualFolders = [];
 let contractAddress = null;
 let provider = null;
 let signer = null;
@@ -20,10 +20,12 @@ let currentActionFile = null;
 let shareMode = 'view';
 let currentZoom = 1;
 
-// Detect mobile browser
-function isMobileBrowser() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
+// WalletConnect provider instance (mobile Chrome connection)
+let wcProvider = null;
+
+// WalletConnect Project ID
+const WC_PROJECT_ID = '7c2f28c5c7f8ec07d0dd0aa8f2c9a739';
+const SEPOLIA_CHAIN_ID = 11155111;
 
 const CONTRACT_ABI = [
   "function addFile(string name,string cid,uint256 size,string mime,bytes32 contentHash,string category,uint256 price,string folder) public returns (uint256)",
@@ -51,82 +53,104 @@ async function init() {
     const json = await res.json();
     contractAddress = json.contractAddress;
 
-    // Setup Public Verifier
     g('publicVerifyInput').addEventListener('change', async (e) => {
       if (!e.target.files.length) return;
-      const file = e.target.files[0];
-      await runPublicVerification(file);
+      await runPublicVerification(e.target.files[0]);
     });
 
-    // Auto-reconnect if already approved
+    // Auto-reconnect: desktop extension
     if (window.ethereum) {
       const accounts = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => []);
-      if (accounts && accounts.length > 0) await setupWallet(accounts[0]);
+      if (accounts && accounts.length > 0) {
+        await setupWallet(accounts[0], new ethers.providers.Web3Provider(window.ethereum));
+        return;
+      }
     }
+
+    // Auto-reconnect: WalletConnect (if a previous WC session exists)
+    try {
+      const EthProvider = resolveWCProvider();
+      if (EthProvider) {
+        const wc = await EthProvider.init(wcConfig());
+        if (wc.session) { // existing session
+          wcProvider = wc;
+          const accounts = wc.accounts;
+          if (accounts && accounts.length > 0) {
+            await setupWallet(accounts[0], new ethers.providers.Web3Provider(wc));
+          }
+        }
+      }
+    } catch (_) { /* no previous WC session */ }
+
   } catch (err) {
-    console.error('Initialization error', err);
+    console.error('Initialization error:', err);
   }
 }
 
-// Mobile connect modal — shown when window.ethereum is absent on mobile Chrome
-function showMobileConnectModal() {
-  // prevent duplicates
-  if (g('mmMobileModal')) return;
+// Resolve the WalletConnect EthereumProvider class from its UMD global
+function resolveWCProvider() {
+  const mod = window.WalletConnectEthereumProvider;
+  if (!mod) return null;
+  // UMD bundle may export: { EthereumProvider } | { default: EthereumProvider } | the class itself
+  return mod.EthereumProvider || mod.default?.EthereumProvider || mod.default || (typeof mod === 'function' ? mod : null);
+}
 
-  const dappUrl = window.location.href.replace(/^https?:\/\//, '');
-  const deepLink = 'https://metamask.app.link/dapp/' + dappUrl;
+// Shared WalletConnect configuration
+function wcConfig() {
+  return {
+    projectId: WC_PROJECT_ID,
+    chains: [SEPOLIA_CHAIN_ID],
+    optionalChains: [SEPOLIA_CHAIN_ID],
+    showQrModal: true,
+    rpcMap: { [SEPOLIA_CHAIN_ID]: 'https://rpc.sepolia.org' },
+    metadata: {
+      name: 'DriveX',
+      description: 'Decentralized Blockchain File Storage',
+      url: window.location.origin,
+      icons: ['https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg'],
+    },
+  };
+}
 
-  const overlay = document.createElement('div');
-  overlay.id = 'mmMobileModal';
-  overlay.style.cssText = [
-    'position:fixed', 'inset:0', 'z-index:9999',
-    'display:flex', 'align-items:flex-end', 'justify-content:center',
-    'background:rgba(0,0,0,0.7)', 'backdrop-filter:blur(6px)',
-    'padding:20px',
-  ].join(';');
+// Connect via WalletConnect (mobile Chrome flow)
+async function connectWalletConnect() {
+  const EthProvider = resolveWCProvider();
+  if (!EthProvider) {
+    alert('WalletConnect library failed to load. Please refresh and try again.');
+    return;
+  }
+  try {
+    g('loginLoader').style.display = 'block';
+    wcProvider = await EthProvider.init(wcConfig());
 
-  overlay.innerHTML = `
-    <div style="
-      background:#1e1b2e; border:1px solid rgba(167,139,250,0.3);
-      border-radius:24px 24px 16px 16px; padding:32px 24px 28px;
-      width:100%; max-width:420px; text-align:center;
-      box-shadow:0 -8px 40px rgba(109,40,217,0.3);
-      font-family:'Outfit',sans-serif; color:#f8fafc;
-    ">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg"
-           style="width:64px;margin-bottom:16px;" alt="MetaMask"/>
-      <h3 style="margin:0 0 8px;font-size:1.3rem;">Connect MetaMask</h3>
-      <p style="color:#94a3b8;font-size:0.9rem;margin:0 0 24px;line-height:1.5;">
-        Open this app inside the MetaMask browser.<br/>
-        Tap <strong style="color:#a78bfa;">Connect</strong> in MetaMask to authorise.<br/>
-        All transactions will go back to MetaMask for signing.
-      </p>
-      <a href="${deepLink}" style="
-        display:block; padding:16px; border-radius:14px; font-size:1rem;
-        font-weight:600; font-family:inherit; cursor:pointer;
-        background:linear-gradient(135deg,#6d28d9,#e81cff);
-        color:#fff; text-decoration:none; margin-bottom:12px;
-        box-shadow:0 4px 15px rgba(109,40,217,0.5);
-      ">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg"
-             style="width:22px;vertical-align:middle;margin-right:8px;"/>
-        Open in MetaMask
-      </a>
-      <button onclick="document.getElementById('mmMobileModal').remove()" style="
-        background:transparent; border:none; color:#64748b;
-        font-family:inherit; font-size:0.9rem; cursor:pointer; padding:8px;
-      ">Cancel</button>
-      <p style="margin:16px 0 0;font-size:0.78rem;color:#475569;">
-        Don't have MetaMask?
-        <a href="https://metamask.io/download/" target="_blank" style="color:#a78bfa;">Install it free</a>
-      </p>
-    </div>
-  `;
+    // .connect() opens the QR modal; on mobile MetaMask shows a deep-link button
+    await wcProvider.connect({
+      chains: [SEPOLIA_CHAIN_ID],
+    });
 
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
+    const accounts = wcProvider.accounts;
+    if (!accounts || accounts.length === 0) throw new Error('No accounts returned.');
+
+    // Switch to Sepolia inside WC session if needed
+    try {
+      const chainId = await wcProvider.request({ method: 'eth_chainId' });
+      if (parseInt(chainId, 16) !== SEPOLIA_CHAIN_ID) {
+        await wcProvider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xaa36a7' }],
+        });
+      }
+    } catch (_) { }
+
+    await setupWallet(accounts[0], new ethers.providers.Web3Provider(wcProvider));
+  } catch (e) {
+    if (wcProvider) { try { await wcProvider.disconnect(); } catch (_) { } wcProvider = null; }
+    if (!e.message?.includes('User rejected') && e.code !== 4001) {
+      alert('WalletConnect error: ' + e.message);
+    }
+  } finally {
+    g('loginLoader').style.display = 'none';
+  }
 }
 
 // Compute Hash
@@ -179,9 +203,10 @@ async function runPublicVerification(file) {
   }
 }
 
-async function setupWallet(account) {
+// setupWallet accepts an ethers provider (extension or WalletConnect)
+async function setupWallet(account, ethersProvider) {
   currentAccount = account;
-  provider = new ethers.providers.Web3Provider(window.ethereum);
+  provider = ethersProvider;
   signer = provider.getSigner();
   contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
 
@@ -193,20 +218,15 @@ async function setupWallet(account) {
 }
 
 g('loginConnectBtn').addEventListener('click', async () => {
-  // Mobile Chrome / Safari: window.ethereum not injected — show in-page modal
   if (!window.ethereum) {
-    if (isMobileBrowser()) {
-      showMobileConnectModal();
-      return;
-    }
-    return alert('MetaMask extension not found. Please install it on desktop.');
+    // Mobile Chrome / no extension: use WalletConnect QR modal
+    await connectWalletConnect();
+    return;
   }
-
-  // Desktop extension OR MetaMask in-app browser
+  // Desktop MetaMask extension
   try {
     g('loginLoader').style.display = 'block';
     await window.ethereum.request({ method: 'eth_requestAccounts' });
-
     try {
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       if (chainId !== '0xaa36a7') {
@@ -215,12 +235,11 @@ g('loginConnectBtn').addEventListener('click', async () => {
           params: [{ chainId: '0xaa36a7' }],
         });
       }
-    } catch (chainErr) {
-      console.warn('Chain switch failed:', chainErr);
-    }
-
+    } catch (chainErr) { console.warn('Chain switch:', chainErr); }
     const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-    if (accounts && accounts.length) await setupWallet(accounts[0]);
+    if (accounts && accounts.length) {
+      await setupWallet(accounts[0], new ethers.providers.Web3Provider(window.ethereum));
+    }
   } catch (e) {
     if (e.code !== 4001) alert('Connection error: ' + e.message);
   } finally {
@@ -228,8 +247,7 @@ g('loginConnectBtn').addEventListener('click', async () => {
   }
 });
 
-g('signoutBtn').addEventListener('click', () => {
-  // Clear State logic correctly mimicking a disconnect for the UI 
+g('signoutBtn').addEventListener('click', async () => {
   currentAccount = null;
   provider = null;
   signer = null;
@@ -239,6 +257,12 @@ g('signoutBtn').addEventListener('click', () => {
   currentSearchQuery = '';
   g('categoryFilter').value = 'All';
   currentCategoryFilter = 'All';
+
+  // Disconnect WalletConnect session if active
+  if (wcProvider) {
+    try { await wcProvider.disconnect(); } catch (_) { }
+    wcProvider = null;
+  }
 
   g('publicScreen').classList.remove('hidden');
   g('appLayout').style.display = 'none';
