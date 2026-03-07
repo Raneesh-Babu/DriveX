@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: drive-app-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: CONTRACT_ADDRESS
+        sync: false
+      - key: SEPOLIA_RPC_URL
+        sync: false
+      - key: PINATA_API_KEY
+        sync: false
+      - key: PINATA_SECRET_KEY
+        sync: false
+      - key: PORT
+        value: 10000

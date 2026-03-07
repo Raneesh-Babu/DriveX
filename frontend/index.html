@@ -1,0 +1,1331 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>DriveX - Modern Protocol</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg-dark: #0a0a0f;
+      --bg-gradient: radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.15), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(217, 70, 239, 0.15), transparent 25%);
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #6d28d9;
+      --accent-hover: #7c3aed;
+      --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      --radius: 16px;
+    }
+
+    body.light-theme {
+      --bg-dark: #f8fafc;
+      --bg-gradient: radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.05), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(217, 70, 239, 0.05), transparent 25%);
+      --card-bg: rgba(255, 255, 255, 0.8);
+      --card-border: rgba(0, 0, 0, 0.08);
+      --text: #0f172a;
+      --muted: #64748b;
+      --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+      --sidebar-bg: rgba(255, 255, 255, 0.4);
+      --input-bg: rgba(0, 0, 0, 0.04);
+      --input-bg-focus: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: var(--bg-gradient);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    ::selection {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    aside.sidebar {
+      width: 280px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      border-right: 1px solid var(--card-border);
+      background: var(--sidebar-bg, rgba(10, 10, 15, 0.4));
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    header.site-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(8px);
+      gap: 24px;
+    }
+
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 40px;
+    }
+
+    /* Typography & Brand */
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #a78bfa, #f472b6);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Buttons */
+    .btn {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 10px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      backdrop-filter: blur(4px);
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #e81cff);
+      border: none;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(109, 40, 217, 0.4);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(109, 40, 217, 0.6);
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border-radius: 8px;
+    }
+
+    /* Sidebar Navigation */
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .nav-item {
+      padding: 12px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      color: var(--muted);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-item.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+    }
+
+    body.light-theme .nav-item.active {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    body.light-theme aside.sidebar .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Inputs */
+    input,
+    select {
+      background: var(--input-bg, rgba(0, 0, 0, 0.2));
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #a78bfa;
+      background: var(--input-bg-focus, rgba(0, 0, 0, 0.4));
+    }
+
+    select option {
+      background: var(--bg-dark);
+      color: var(--text);
+    }
+
+    .search-bar {
+      flex: 1;
+      max-width: 400px;
+      position: relative;
+    }
+
+    .search-bar i {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+
+    .search-bar input {
+      padding-left: 44px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Breadcrumbs */
+    .breadcrumbs-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.1rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .breadcrumb-item {
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .breadcrumb-item:hover {
+      color: var(--text);
+    }
+
+    .breadcrumb-sep {
+      font-size: 0.9em;
+      opacity: 0.5;
+    }
+
+    /* Grid & Cards */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--glass-shadow);
+      transition: transform 0.3s, box-shadow 0.3s;
+      position: relative;
+      user-select: none;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* File specific */
+    .file-thumb {
+      height: 140px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: var(--muted);
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .file-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+
+    .card:hover .file-thumb img {
+      transform: scale(1.05);
+    }
+
+    .file-ext {
+      font-family: 'Outfit';
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      opacity: 0.5;
+      font-weight: 700;
+    }
+
+    .file-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .file-name {
+      font-weight: 600;
+      font-size: 1.05rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .badge.cat {
+      background: rgba(167, 139, 250, 0.15);
+      color: #a78bfa;
+    }
+
+    .badge.price {
+      background: rgba(52, 211, 153, 0.15);
+      color: #34d399;
+    }
+
+    /* Custom Context Menu */
+    .context-menu {
+      display: none;
+      position: fixed;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 180px;
+    }
+
+    .context-menu.open {
+      display: flex;
+      animation: fadeIn 0.15s ease-out forwards;
+    }
+
+    body.light-theme .context-menu {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .context-menu button {
+      display: flex;
+      width: 100%;
+      text-align: left;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .context-menu button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    body.light-theme .context-menu button:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .context-menu button i {
+      width: 16px;
+      text-align: center;
+      opacity: 0.8;
+    }
+
+    .context-menu hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 4px 0;
+    }
+
+    body.light-theme .context-menu hr {
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    /* Full Page Overlays */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .overlay.active {
+      display: flex;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 32px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    body.light-theme .modal {
+      background: #ffffff;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-close {
+      position: absolute;
+      right: 24px;
+      top: 24px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.5rem;
+      transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    .modal h2 {
+      margin-bottom: 8px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* Public Area / Login Screen */
+    .public-screen {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: var(--bg-dark);
+      z-index: 2000;
+      overflow-y: auto;
+    }
+
+    .public-screen.hidden {
+      display: none !important;
+    }
+
+    .split-layout {
+      display: flex;
+      width: 100%;
+      min-height: 100%;
+    }
+
+    .split-left {
+      flex: 1;
+      padding: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(20, 20, 30, 0.8), rgba(10, 10, 15, 0.9)), url('https://images.unsplash.com/photo-1639762681485-074b7f4ec651?q=80&w=2670&auto=format&fit=crop') center/cover;
+    }
+
+    body.light-theme .split-left {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.95)), url('https://images.unsplash.com/photo-1639762681485-074b7f4ec651?q=80&w=2670&auto=format&fit=crop') center/cover;
+      color: #0f172a;
+    }
+
+    .split-right {
+      width: 500px;
+      padding: 60px 40px;
+      background: var(--bg-dark);
+      border-left: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 32px;
+    }
+
+    .hero-title {
+      font-size: 4rem;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 24px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(90deg, #a78bfa, #f472b6);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: var(--muted);
+      max-width: 80%;
+      line-height: 1.6;
+    }
+
+    .verify-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed var(--muted);
+      border-radius: 20px;
+      padding: 32px;
+      text-align: center;
+      margin-top: 40px;
+      backdrop-filter: blur(10px);
+    }
+
+    body.light-theme .verify-box {
+      background: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+      border-color: #cbd5e1;
+    }
+
+    .verify-box h3 {
+      margin-bottom: 16px;
+    }
+
+    .verify-result {
+      margin-top: 16px;
+      text-align: left;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 16px;
+      border-radius: 12px;
+      display: none;
+    }
+
+    body.light-theme .verify-result {
+      background: rgba(255, 255, 255, 1);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
+    }
+
+    .verify-result.success {
+      border-left: 4px solid #34d399;
+      display: block;
+    }
+
+    .verify-result.failed {
+      border-left: 4px solid #ef4444;
+      display: block;
+    }
+
+    /* History List */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    /* Access List */
+    .access-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 350px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .access-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.light-theme .access-item {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+
+    .access-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    body.light-theme .access-item:hover {
+      background: #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .access-item .address {
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+      min-width: 0;
+      flex: 1;
+      padding-right: 12px;
+    }
+
+    .access-item .address span {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    body.light-theme .access-item .address span {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .history-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--accent);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.light-theme .history-item {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      border-left-color: var(--accent);
+    }
+
+    .history-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    body.light-theme .history-item:hover {
+      background: #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .history-item .actor {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .history-item .actor span {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      color: var(--text);
+    }
+
+    body.light-theme .history-item .actor span {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .history-item .action {
+      font-weight: 500;
+    }
+
+    .history-item .time {
+      font-size: 0.75rem;
+      color: var(--muted);
+      align-self: flex-end;
+      margin-top: 4px;
+    }
+
+    /* Loader */
+    .loader {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Preview */
+    #previewViewer {
+      flex: 1;
+      height: 100%;
+      width: 100%;
+      border-radius: 12px;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    body.light-theme #previewViewer {
+      background: #f1f5f9;
+    }
+
+    #previewViewer img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    #previewViewer iframe,
+    #previewViewer embed {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+      .split-layout {
+        flex-direction: column;
+      }
+
+      .split-left {
+        padding: 40px 24px;
+      }
+
+      .split-right {
+        width: 100%;
+        padding: 40px 24px;
+        border-left: none;
+        border-top: 1px solid var(--card-border);
+      }
+
+      .hero-title {
+        font-size: 2.5rem;
+      }
+
+      .hero-subtitle {
+        font-size: 1rem;
+        max-width: 100%;
+      }
+
+      .verify-box {
+        padding: 20px;
+      }
+
+      .app-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      aside.sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 280px;
+        height: 100vh;
+        padding: 24px;
+        border-right: 1px solid var(--card-border);
+        border-bottom: none;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-dark);
+        /* Solidify background for off-canvas overlap */
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      body.light-theme aside.sidebar {
+        background: #f8fafc;
+      }
+
+      aside.sidebar.mobile-open {
+        left: 0;
+      }
+
+      .nav-menu {
+        flex-direction: column;
+        overflow-x: hidden;
+        padding-bottom: 0;
+        gap: 8px;
+      }
+
+      .nav-menu label {
+        display: block;
+      }
+
+      .nav-item {
+        white-space: normal;
+        padding: 12px 16px;
+      }
+
+      /* Mobile Header with Hamburger */
+      header.site-header {
+        flex-wrap: wrap;
+        padding: 16px 20px;
+        gap: 16px;
+      }
+
+      #viewTitle {
+        flex: 1;
+        font-size: 1.5rem;
+        order: 1;
+        margin: 0;
+      }
+
+      #mobileMenuToggle {
+        display: flex !important;
+        order: 2;
+        margin-left: auto;
+      }
+
+      .search-bar {
+        order: 4;
+        flex: 1 1 100%;
+        max-width: none;
+      }
+
+      header.site-header>div:last-child {
+        order: 3;
+      }
+
+      .content-area {
+        overflow-y: visible;
+        padding: 20px;
+      }
+
+      .grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+      }
+
+      .file-thumb {
+        height: 120px;
+      }
+
+      .file-info {
+        padding: 12px;
+      }
+
+      .file-name {
+        font-size: 0.9rem;
+      }
+
+      .modal {
+        width: 95vw !important;
+        padding: 24px;
+        margin: auto;
+      }
+
+      #previewModal .modal {
+        height: 85vh !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Custom Right Click Context Menu -->
+  <div id="contextMenu" class="context-menu">
+    <button id="ctxDownload"><i class="fa-solid fa-download"></i> Download</button>
+    <button id="ctxVerify"><i class="fa-solid fa-shield-check"></i> Verify Integrity</button>
+    <button id="ctxHistory"><i class="fa-solid fa-clock-rotate-left"></i> View History</button>
+    <div id="ctxOwnerOnlyGroup" style="display:none; flex-direction:column; gap:4px; width:100%;">
+      <hr />
+      <button id="ctxShareView"><i class="fa-solid fa-eye"></i> Share (View Only)</button>
+      <button id="ctxShareOwnership"><i class="fa-solid fa-handshake"></i> Transfer Ownership</button>
+      <button id="ctxManageAccess"><i class="fa-solid fa-users-gear"></i> Manage Access</button>
+      <button id="ctxMove"><i class="fa-solid fa-folder-tree"></i> Move / Categorize</button>
+      <hr />
+      <button id="ctxDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete File</button>
+    </div>
+    <div id="ctxMarketGroup" style="display:none; flex-direction:column; width:100%;">
+      <hr />
+      <button id="ctxBuy" style="color:#34d399;"><i class="fa-solid fa-cart-shopping"></i> Buy Access</button>
+    </div>
+  </div>
+
+  <!-- Folder Context Menu -->
+  <div id="folderContextMenu" class="context-menu">
+    <button id="ctxFolderOpen"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
+    <hr />
+    <button id="ctxFolderDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete Folder</button>
+  </div>
+
+  <!-- Public Welcome & Login Screen -->
+  <div id="publicScreen" class="public-screen">
+    <div class="split-layout">
+      <div class="split-left">
+        <h1 class="hero-title">Experience the Future of <span
+            style="background: linear-gradient(90deg, #a78bfa, #f472b6); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Secure
+            Storage</span></h1>
+        <p class="hero-subtitle">Decentralized, encrypted, and highly resilient. Store, share, and monetize your
+          valuable data on the blockchain.</p>
+
+        <div class="verify-box">
+          <h3>Public Verification System</h3>
+          <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Drag and drop any file to verify its
+            authenticity on the blockchain anonymously.</p>
+          <input type="file" id="publicVerifyInput" style="display:none;" />
+          <button class="btn btn-primary" onclick="document.getElementById('publicVerifyInput').click()"><i
+              class="fa-solid fa-upload"></i> Select File to Verify</button>
+          <div id="verifyStatus" style="margin-top:12px; font-size:0.9rem;"></div>
+          <div id="verifyResult" class="verify-result"></div>
+        </div>
+      </div>
+      <div class="split-right">
+        <div class="brand" style="justify-content:center; font-size:3rem; margin-bottom:20px;">
+          DriveX
+        </div>
+        <div class="card" style="text-align:center; padding: 40px 24px; box-shadow:none;">
+          <h2 style="margin-bottom: 12px;">Welcome Back</h2>
+          <p style="color:var(--muted); margin-bottom: 32px;">Connect your Web3 wallet to access your secure storage
+            vault and marketplace.</p>
+          <button id="loginConnectBtn" class="btn btn-primary"
+            style="width:100%; padding: 16px; font-size:1.1rem; justify-content:center; align-items:center; gap: 12px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask Icon"
+              style="width: 28px; height: 28px;" />
+            Connect MetaMask
+            <div id="loginLoader" class="loader"
+              style="display:none; width:20px; height:20px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Layout (Hidden until logged in) -->
+  <div id="appLayout" class="app-container" style="display:none;">
+    <aside class="sidebar">
+      <div class="brand" style="margin-bottom: 20px;">
+        DriveX
+      </div>
+      <div style="margin-bottom: 20px;">
+        <input type="file" id="fileInput" style="display:none" />
+        <button id="uploadTriggerBtn" class="btn btn-primary" style="width:100%; padding: 14px;">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+        </button>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Category
+          Filter</label>
+        <select id="categoryFilter">
+          <option value="All">All Categories</option>
+        </select>
+      </div>
+
+      <div class="nav-menu">
+        <label
+          style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top:12px;">Locations</label>
+        <div class="nav-item active" data-view="myfiles">
+          <i class="fa-solid fa-user-lock"></i> My Files
+        </div>
+        <div class="nav-item" data-view="sharedfiles">
+          <i class="fa-solid fa-users"></i> Shared with me
+        </div>
+        <div class="nav-item" data-view="marketfiles">
+          <i class="fa-solid fa-store"></i> Marketplace
+        </div>
+      </div>
+      <div style="margin-top: auto;">
+        <button id="signoutBtn" class="btn btn-ghost"
+          style="width:100%; padding:14px; background: rgba(239, 68, 68, 0.1); color: #f87171;"><i
+            class="fa-solid fa-right-from-bracket"></i> Disconnect</button>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="site-header">
+        <h2 id="viewTitle" style="white-space:nowrap;">My Files</h2>
+
+        <button id="mobileMenuToggle" class="btn btn-ghost" style="display:none; padding:8px 12px; font-size:1.2rem;">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" placeholder="Search files by name..." />
+        </div>
+
+        <div style="display:flex; align-items:center; gap:16px; white-space:nowrap;">
+          <button id="themeToggleBtn" class="btn btn-ghost" title="Toggle Light/Dark Mode"
+            style="border-radius:50%; padding: 8px; width:40px; height:40px; display:flex; justify-content:center; align-items:center;">
+            <i id="themeIcon" class="fa-solid fa-sun"></i>
+          </button>
+          <div id="accountStatus" class="btn btn-ghost" style="border-radius:20px; font-size:0.9rem;">0x...</div>
+        </div>
+      </header>
+      <div class="content-area">
+
+        <div class="breadcrumbs-wrapper">
+          <div id="folderBreadcrumbs" class="breadcrumbs">
+            <span class="breadcrumb-item" data-path="/">Root</span>
+          </div>
+          <button id="createFolderBtn" class="btn" style="font-size:0.9rem;"><i class="fa-solid fa-folder-plus"></i> New
+            Folder</button>
+        </div>
+
+        <div id="filesGrid" class="grid">
+          <!-- Files rendered here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Datalist for Categories (Reusable) -->
+  <datalist id="categoryOptions">
+    <!-- Populated dynamically -->
+    <option value="General"></option>
+    <option value="Hospital"></option>
+    <option value="Education"></option>
+    <option value="Legal"></option>
+    <option value="Art"></option>
+  </datalist>
+
+  <!-- Upload Modal -->
+  <div id="uploadModal" class="overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('uploadModal')">&times;</button>
+      <h2>Configure Upload</h2>
+      <div class="form-group">
+        <label>Selected File</label>
+        <div id="uploadFileName"
+          style="padding:12px; background:rgba(255,255,255,0.05); border-radius:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          filename.ext</div>
+      </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="uploadName" placeholder="File display name" />
+      </div>
+      <div class="form-group" style="display:flex; flex-direction:row; gap:12px;">
+        <div style="flex:1;">
+          <label>Folder (e.g. `docs`)</label>
+          <input type="text" id="uploadFolder" value="/" placeholder="Root = /" />
+        </div>
+        <div style="flex:1;">
+          <label>Category</label>
+          <input type="text" id="uploadCategory" list="categoryOptions" placeholder="Type or select..."
+            value="General" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Price (ETH) - 0 for private/free</label>
+        <input type="number" id="uploadPrice" step="0.0001" min="0" value="0" />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <button id="confirmUploadBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+          <i class="fa-solid fa-cube"></i> Deploy to Blockchain
+          <div id="uploadLoader" class="loader"
+            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+        </button>
+      </div>
+      <div id="uploadStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Move File Modal -->
+  <div id="moveModal" class="overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('moveModal')">&times;</button>
+      <h2>Move / Re-Categorize File</h2>
+      <div class="form-group">
+        <label>New Folder Path</label>
+        <input type="text" id="moveFolder" placeholder="e.g. /work/documents" />
+      </div>
+      <div class="form-group">
+        <label>New Category</label>
+        <input type="text" id="moveCategory" list="categoryOptions" placeholder="Type or select..." value="General" />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <button id="confirmMoveBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+          <i class="fa-solid fa-folder-tree"></i> Move File
+          <div id="moveLoader" class="loader"
+            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+        </button>
+      </div>
+      <div id="moveStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Delete File Modal -->
+  <div id="deleteModal" class="overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+      <h2>Delete File</h2>
+      <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
+        <strong id="deleteTargetName">this file</strong> from the blockchain? This action cannot be undone.
+      </p>
+
+      <div class="form-group" style="margin-top:12px;">
+        <button id="confirmDeleteBtn" class="btn btn-danger" style="justify-content:center; padding:14px; width:100%;">
+          <i class="fa-solid fa-trash"></i> Permanently Delete
+          <div id="deleteLoader" class="loader"
+            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+        </button>
+      </div>
+      <div id="deleteStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Delete Folder Modal -->
+  <div id="deleteFolderModal" class="overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('deleteFolderModal')">&times;</button>
+      <h2>Delete Folder</h2>
+      <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
+        <strong id="deleteFolderTargetName">this folder</strong> and all of its contents from the blockchain? This
+        action cannot be undone.</p>
+
+      <div class="form-group" style="margin-top:12px;">
+        <button id="confirmFolderDeleteBtn" class="btn btn-danger"
+          style="justify-content:center; padding:14px; width:100%;">
+          <i class="fa-solid fa-trash"></i> Delete Folder
+          <div id="deleteFolderLoader" class="loader"
+            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+        </button>
+      </div>
+      <div id="deleteFolderStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div id="shareModal" class="overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('shareModal')">&times;</button>
+      <h2 id="shareTitle">Share File</h2>
+      <p id="shareDesc" style="color:var(--muted); font-size:0.9rem;">Grant access to a specific wallet address.</p>
+      <div class="form-group">
+        <label>Recipient Address (0x...)</label>
+        <input type="text" id="shareAddress" placeholder="0x..." />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <button id="confirmShareBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+          <span id="shareBtnText">Grant Access</span>
+          <div id="shareLoader" class="loader"
+            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+        </button>
+      </div>
+      <div id="shareStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Manage Access Modal -->
+  <div id="manageAccessModal" class="overlay">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('manageAccessModal')">&times;</button>
+      <h2>Manage Access</h2>
+      <p style="color:var(--muted); font-size:0.9rem;">View and revoke access for this file.</p>
+
+      <div id="accessListLoader" class="loader" style="display:none; margin: 20px auto; border-top-color:#a78bfa;">
+      </div>
+
+      <div id="accessList" class="access-list" style="margin-top: 12px;">
+        <!-- Items injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div id="historyModal" class="overlay">
+    <div class="modal" style="max-width: 600px;">
+      <button class="modal-close" onclick="closeModal('historyModal')">&times;</button>
+      <h2>File History</h2>
+      <div id="historyList" class="history-list">
+        <!-- History items here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="previewModal" class="overlay">
+    <div class="modal"
+      style="width: 90vw; max-width: 1200px; height: 90vh; max-height: 900px; padding: 20px; display: flex; flex-direction: column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="previewTitle" style="margin:0;">Preview</h3>
+        <div style="display:flex; gap:12px;">
+          <div style="display:flex; gap:4px; background:rgba(255,255,255,0.05); padding:4px; border-radius:8px;">
+            <button id="btnZoomOut" class="btn btn-ghost btn-sm" title="Zoom Out"><i
+                class="fa-solid fa-magnifying-glass-minus"></i></button>
+            <button id="btnZoomReset" class="btn btn-ghost btn-sm" title="Reset Zoom"><i
+                class="fa-solid fa-expand"></i></button>
+            <button id="btnZoomIn" class="btn btn-ghost btn-sm" title="Zoom In"><i
+                class="fa-solid fa-magnifying-glass-plus"></i></button>
+          </div>
+          <a id="previewDownload" class="btn btn-primary btn-sm" target="_blank"><i class="fa-solid fa-download"></i>
+            Download</a>
+          <button class="btn btn-ghost btn-sm" onclick="closeModal('previewModal')"><i class="fa-solid fa-xmark"></i>
+            Close</button>
+        </div>
+      </div>
+      <div id="previewViewer"></div>
+    </div>
+  </div>
+
+  <script src="/libs/ethers/ethers.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

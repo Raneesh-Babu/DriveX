@@ -1,0 +1,110 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\blockchain\\blockchain-file-locker\\drive-app\\contracts\\Drive.sol": {
+      "lastModificationDate": 1771357220513,
+      "contentHash": "161edbffe0a066d816a15e5bc992f3b0",
+      "sourceName": "contracts/Drive.sol",
+      "solcConfig": {
+        "version": "0.8.17",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.17"
+      ],
+      "artifacts": [
+        "Drive"
+      ]
+    },
+    "D:\\blockchain\\working version\\v4.0\\drive-app\\contracts\\Drive.sol": {
+      "lastModificationDate": 1772820025634,
+      "contentHash": "5bc7f4dd32712a508c327d701645c3dc",
+      "sourceName": "contracts/Drive.sol",
+      "solcConfig": {
+        "version": "0.8.17",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.17"
+      ],
+      "artifacts": [
+        "Drive"
+      ]
+    },
+    "D:\\blockchain\\working version\\v7.0\\drive-app\\contracts\\Drive.sol": {
+      "lastModificationDate": 1772878680146,
+      "contentHash": "9fed97f979e53e3bd436d7ae756bea22",
+      "sourceName": "contracts/Drive.sol",
+      "solcConfig": {
+        "version": "0.8.17",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.17"
+      ],
+      "artifacts": [
+        "Drive"
+      ]
+    }
+  }
+}
