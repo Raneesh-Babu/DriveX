@@ -13,7 +13,6 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/', express.static(path.join(__dirname, 'frontend')));
-app.use('/libs/ethers', express.static(path.join(__dirname, 'node_modules', 'ethers', 'dist')));
 
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '';
 const RPC = process.env.SEPOLIA_RPC_URL || '';

@@ -24,6 +24,9 @@ let currentZoom = 1;
 let appKitModal = null;
 const WC_PROJECT_ID = '7c2f28c5c7f8ec07d0dd0aa8f2c9a739';
 
+// MetaMask SDK Instance
+let mmsdk = null;
+
 // Detect mobile browser
 function isMobileBrowser() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -54,6 +57,18 @@ async function init() {
     const res = await fetch('/config');
     const json = await res.json();
     contractAddress = json.contractAddress;
+
+    // Initialize MetaMask SDK for Mobile Deep Linking
+    if (typeof window.MetaMaskSDK !== 'undefined') {
+      mmsdk = new window.MetaMaskSDK.MetaMaskSDK({
+        dappMetadata: {
+          name: "DriveX",
+          url: window.location.href,
+        },
+        logging: { developerMode: false },
+        checkInstallationImmediately: false
+      });
+    }
 
     g('publicVerifyInput').addEventListener('change', async (e) => {
       if (!e.target.files.length) return;
@@ -178,6 +193,32 @@ async function setupWallet(account, ethersProvider) {
 }
 
 g('loginConnectBtn').addEventListener('click', async () => {
+  // Deep link directly to MetaMask on mobile devices
+  if (isMobileBrowser() && mmsdk && (!window.ethereum || !window.ethereum.isMetaMask)) {
+    try {
+      g('loginLoader').style.display = 'block';
+      const sdkProvider = mmsdk.getProvider();
+      const accounts = await sdkProvider.request({ method: 'eth_requestAccounts' });
+      if (accounts && accounts.length) {
+        try {
+          const chainId = await sdkProvider.request({ method: 'eth_chainId' });
+          if (chainId !== '0xaa36a7' && chainId !== '11155111') {
+            await sdkProvider.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0xaa36a7' }],
+            });
+          }
+        } catch (chainErr) { console.warn('Chain switch:', chainErr); }
+        await setupWallet(accounts[0], new ethers.providers.Web3Provider(sdkProvider));
+        return;
+      }
+    } catch (e) {
+      if (e.code !== 4001) alert('Connection error: ' + e.message);
+    } finally {
+      g('loginLoader').style.display = 'none';
+    }
+  }
+
   // Mobile Chrome / no injected extension
   if (!window.ethereum) {
     if (appKitModal) {
