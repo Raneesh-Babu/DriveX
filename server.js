@@ -65,6 +65,18 @@ async function fetchFiles(ids) {
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];
     const f = await contract.getFile(id);
+    let lastModified = f[6].toString();
+    let lastAction = "Uploaded";
+    try {
+      const history = await contract.getHistory(id);
+      if (history && history.length > 0) {
+        lastModified = history[history.length - 1].timestamp.toString();
+        lastAction = history[history.length - 1].action;
+      }
+    } catch (e) {
+      console.warn('Could not fetch history for file', id);
+    }
+
     files.push({
       id: f[0].toString(),
       name: f[1],
@@ -73,6 +85,8 @@ async function fetchFiles(ids) {
       mime: f[4],
       owner: f[5],
       timestamp: f[6].toString(),
+      lastModified: lastModified,
+      lastAction: lastAction,
       deleted: f[7],
       contentHash: f[8],
       category: f[9],

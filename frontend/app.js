@@ -10,6 +10,8 @@ let currentView = 'myfiles';
 let currentFolder = '/';
 let currentCategoryFilter = 'All';
 let currentSearchQuery = '';
+let currentLayout = localStorage.getItem('drivexLayout') || 'grid';
+let currentSort = localStorage.getItem('drivexSort') || 'date-desc';
 let virtualFolders = [];
 let contractAddress = null;
 let provider = null;
@@ -196,7 +198,7 @@ async function setupWallet(account, ethersProvider) {
 
   g('publicScreen').classList.add('hidden');
   g('appLayout').style.display = 'flex';
-  g('accountStatus').innerText = account.slice(0, 6) + '...' + account.slice(-4);
+  g('accountStatusText').innerText = account.slice(0, 6) + '...' + account.slice(-4);
 
   loadCurrentView();
 }
@@ -222,7 +224,7 @@ g('loginConnectBtn').addEventListener('click', async () => {
         return;
       }
     } catch (e) {
-      if (e.code !== 4001) alert('Connection error: ' + e.message);
+      if (e.code !== 4001) await customAlert('Connection error: ' + e.message);
     } finally {
       g('loginLoader').style.display = 'none';
     }
@@ -241,7 +243,7 @@ g('loginConnectBtn').addEventListener('click', async () => {
       window.location.href = 'https://metamask.app.link/dapp/' + dappUrl;
       return;
     }
-    return alert('MetaMask not found. Please install the browser extension.');
+    return customAlert('MetaMask not found. Please install the browser extension.');
   }
 
   // Desktop MetaMask extension (or in-app browser)
@@ -262,10 +264,22 @@ g('loginConnectBtn').addEventListener('click', async () => {
       await setupWallet(accounts[0], new ethers.providers.Web3Provider(window.ethereum));
     }
   } catch (e) {
-    if (e.code !== 4001) alert('Connection error: ' + e.message);
+    if (e.code !== 4001) await customAlert('Connection error: ' + e.message);
   } finally {
     g('loginLoader').style.display = 'none';
   }
+});
+
+// Wallet dropdown toggle
+g('accountStatus').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dropdown = g('accountDropdown');
+  dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+});
+
+document.addEventListener('click', () => {
+  const dropdown = g('accountDropdown');
+  if (dropdown) dropdown.style.display = 'none';
 });
 
 g('signoutBtn').addEventListener('click', async () => {
@@ -278,6 +292,7 @@ g('signoutBtn').addEventListener('click', async () => {
   currentSearchQuery = '';
   g('categoryFilter').value = 'All';
   currentCategoryFilter = 'All';
+  // Keep layout and sort across logouts
 
   if (appKitModal && appKitModal.getState().connected) {
     try { await appKitModal.disconnect(); } catch (_) { }
@@ -298,8 +313,8 @@ g('categoryFilter').addEventListener('change', (e) => {
   loadCurrentView();
 });
 
-g('createFolderBtn').addEventListener('click', () => {
-  const name = prompt("Enter new folder name:");
+g('createFolderBtn').addEventListener('click', async () => {
+  const name = await customPrompt("Enter new folder name:");
   if (name && name.trim()) {
     let cleanName = name.trim().replace(/\//g, ''); // no slashes allowed in internal name
     let newPath = currentFolder === '/' ? '/' + cleanName : currentFolder + '/' + cleanName;
@@ -344,6 +359,38 @@ document.querySelectorAll('.nav-item').forEach(el => {
     loadCurrentView();
   });
 });
+
+// Layout & Sorting Bindings
+const sortSelect = g('sortSelect');
+if (sortSelect) {
+  sortSelect.value = currentSort;
+  sortSelect.addEventListener('change', (e) => {
+    currentSort = e.target.value;
+    localStorage.setItem('drivexSort', currentSort);
+    loadCurrentView();
+  });
+}
+
+function setLayout(layout) {
+  currentLayout = layout;
+  localStorage.setItem('drivexLayout', layout);
+
+  const grid = g('filesGrid');
+  if (layout === 'list') {
+    grid.classList.add('list-view');
+    if (g('btnLayoutList')) g('btnLayoutList').classList.add('active');
+    if (g('btnLayoutGrid')) g('btnLayoutGrid').classList.remove('active');
+  } else {
+    grid.classList.remove('list-view');
+    if (g('btnLayoutGrid')) g('btnLayoutGrid').classList.add('active');
+    if (g('btnLayoutList')) g('btnLayoutList').classList.remove('active');
+  }
+}
+
+const btnGrid = g('btnLayoutGrid');
+const btnList = g('btnLayoutList');
+if (btnGrid) btnGrid.addEventListener('click', () => setLayout('grid'));
+if (btnList) btnList.addEventListener('click', () => setLayout('list'));
 
 // Inner Public Verification Logic
 const vDropInner = g('verifyDropZoneInner');
@@ -491,8 +538,28 @@ async function loadCurrentView() {
   try {
     const res = await fetch(endpoint);
     const data = await res.json();
-    syncCategories(data.files || []); // Generate filter lists
-    renderArchitecture(data.files || []);
+    const filesArray = data.files || [];
+    syncCategories(filesArray); // Generate filter lists
+    renderArchitecture(filesArray);
+
+    // Calculate Storage Used (only count user's owned files from their drive)
+    if (currentView === 'myfiles') {
+      let totalBytes = 0;
+      filesArray.forEach(f => {
+        if (!f.deleted) totalBytes += parseInt(f.size || 0);
+      });
+      const MAX_BYTES = 1024 * 1024 * 1024; // 1 GB
+      const pct = Math.min((totalBytes / MAX_BYTES) * 100, 100).toFixed(1);
+
+      const bar = g('storageProgressBar');
+      const pctText = g('storageUsedPct');
+      const usedText = g('storageUsedText');
+      if (bar && pctText && usedText) {
+        bar.style.width = pct + '%';
+        pctText.innerText = pct + '%';
+        usedText.innerText = formatBytes(totalBytes);
+      }
+    }
   } catch (e) {
     grid.innerHTML = `<p style="color:#ef4444">Error loading files: ${e.message}</p>`;
   }
@@ -522,7 +589,9 @@ function renderBreadcrumbs() {
     currentPath += '/' + p;
     addCrumb(p, currentPath);
   });
-  if (bc.lastChild) bc.removeChild(bc.lastChild);
+  // Apply layout state correctly before rendering
+  setLayout(currentLayout);
+
 }
 
 function formatBytes(bytes) {
@@ -601,6 +670,26 @@ function renderArchitecture(allFiles) {
     return;
   }
 
+  // Sort displayFiles
+  displayFiles.sort((a, b) => {
+    switch (currentSort) {
+      case 'name-asc':
+        return a.name.localeCompare(b.name);
+      case 'name-desc':
+        return b.name.localeCompare(a.name);
+      case 'date-asc':
+        return parseInt(a.timestamp) - parseInt(b.timestamp);
+      case 'date-desc':
+        return parseInt(b.timestamp) - parseInt(a.timestamp);
+      case 'size-asc':
+        return parseInt(a.size) - parseInt(b.size);
+      case 'size-desc':
+        return parseInt(b.size) - parseInt(a.size);
+      default:
+        return parseInt(b.timestamp) - parseInt(a.timestamp);
+    }
+  });
+
   // Render Folders First (skip if searching or in marketplace)
   if (!isSearchActive && currentView !== 'marketfiles') {
     folders.forEach(folderPath => {
@@ -650,6 +739,21 @@ function renderArchitecture(allFiles) {
       thumb.innerHTML = `<i class="fa-solid fa-file"></i><span class="file-ext">${ext}</span>`;
     }
 
+    // Date formatting helper
+    const formatDate = (ts) => {
+      if (!ts) return "N/A";
+      const d = new Date(parseInt(ts) * 1000);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    const dateOverlay = document.createElement('div');
+    dateOverlay.className = 'file-thumb-dates';
+    dateOverlay.innerHTML = `
+      <span><i class="fa-solid fa-calendar-plus" style="margin-right:4px;"></i>Up: ${formatDate(f.timestamp)}</span>
+      <span><i class="fa-solid fa-clock-rotate-left" style="margin-right:4px;"></i>Mod: ${formatDate(f.lastModified || f.timestamp)}</span>
+    `;
+    thumb.appendChild(dateOverlay);
+
     thumb.onclick = (e) => { e.stopPropagation(); openPreview(f.cid, f.name, f.mime); };
 
     const info = document.createElement('div');
@@ -681,6 +785,16 @@ function renderArchitecture(allFiles) {
     meta.appendChild(s);
 
     info.appendChild(name);
+
+    // List view dates
+    const listDates = document.createElement('div');
+    listDates.className = 'list-dates';
+    listDates.innerHTML = `
+      <div style="font-size: 0.8rem; color: var(--muted);"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>${formatDate(f.timestamp)}</div>
+      <div style="font-size: 0.8rem; color: var(--muted);"><i class="fa-solid fa-clock-rotate-left" style="margin-right:6px;"></i>Mod: ${formatDate(f.lastModified || f.timestamp)}</div>
+    `;
+    info.appendChild(listDates);
+
     info.appendChild(meta);
     card.appendChild(thumb);
     card.appendChild(info);
@@ -762,7 +876,7 @@ g('ctxFolderRename').addEventListener('click', () => {
 
 g('confirmFolderRenameBtn').addEventListener('click', async () => {
   const newName = g('renameFolderInput').value.trim().replace(/\//g, '');
-  if (!newName) return alert("Folder name cannot be empty");
+  if (!newName) return customAlert("Folder name cannot be empty");
 
   const btn = g('confirmFolderRenameBtn');
   const loader = g('renameFolderLoader');
@@ -875,14 +989,14 @@ g('ctxDownload').addEventListener('click', async () => {
     window.URL.revokeObjectURL(objectUrl);
   } catch (error) {
     console.error("Download failed:", error);
-    alert("Failed to download file. Please try again.");
+    customAlert("Failed to download file. Please try again.");
   } finally {
     toast.style.display = 'none';
   }
 });
 
-g('ctxVerify').addEventListener('click', () => {
-  alert(`Please download the file first, then drag it into the "Public Verification Tool" on the landing page to verify its integrity.\n\nOn-Chain Hash Signature: ${currentActionFile.contentHash}`);
+g('ctxVerify').addEventListener('click', async () => {
+  await customAlert(`Please download the file first, then drag it into the "Public Verification Tool" on the landing page to verify its integrity.\n\nOn-Chain Hash Signature: ${currentActionFile.contentHash}`);
 });
 
 g('ctxHistory').addEventListener('click', () => showFileHistory(currentActionFile.id));
@@ -920,7 +1034,7 @@ g('ctxRename').addEventListener('click', () => {
 
 g('confirmRenameBtn').addEventListener('click', async () => {
   const newName = g('renameInput').value.trim();
-  if (!newName) return alert("Name cannot be empty");
+  if (!newName) return customAlert("Name cannot be empty");
 
   const btn = g('confirmRenameBtn');
   const loader = g('renameLoader');
@@ -966,7 +1080,7 @@ g('confirmSetPriceBtn').addEventListener('click', async () => {
   try {
     priceWei = ethers.utils.parseEther(priceEth || "0");
   } catch (e) {
-    return alert("Invalid price format");
+    return customAlert("Invalid price format");
   }
 
   const btn = g('confirmSetPriceBtn');
@@ -1138,7 +1252,7 @@ function openShareModal(id) {
 
 g('confirmShareBtn').addEventListener('click', async () => {
   const to = g('shareAddress').value;
-  if (!to || !ethers.utils.isAddress(to)) return alert('Invalid address');
+  if (!to || !ethers.utils.isAddress(to)) return customAlert('Invalid address');
 
   const btn = g('confirmShareBtn');
   const loader = g('shareLoader');
@@ -1251,7 +1365,7 @@ async function openManageAccessModal(id) {
       let isRevoking = false;
       revokeBtn.onclick = async () => {
         if (isRevoking) return;
-        if (!confirm('Revoke access for ' + user + '?')) return;
+        if (!(await customConfirm('Revoke access for ' + user + '?'))) return;
         isRevoking = true;
         revokeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Revoking...';
         revokeBtn.style.opacity = '0.5';
@@ -1263,7 +1377,7 @@ async function openManageAccessModal(id) {
             list.innerHTML = '<div style="text-align:center; padding:40px 20px;"><i class="fa-solid fa-user-shield" style="font-size:3rem; color:var(--muted); margin-bottom:16px; display:block;"></i><p style="color:var(--text); margin:0; font-weight:500;">Private File</p><p style="color:var(--muted); font-size:0.9rem; margin-top:4px;">No users currently have view access.</p></div>';
           }
         } catch (e) {
-          alert('Error revoking access: ' + e.message);
+          await customAlert('Error revoking access: ' + e.message);
           revokeBtn.innerHTML = '<i class="fa-solid fa-user-minus"></i> Revoke';
           revokeBtn.style.opacity = '1';
         } finally {
@@ -1285,11 +1399,11 @@ async function openManageAccessModal(id) {
 async function buyFile(id, priceWei) {
   try {
     const tx = await contract.buyAccess(id, { value: priceWei });
-    alert('Transaction sent. Please wait for confirmation.');
+    await customAlert('Transaction sent. Please wait for confirmation.');
     await tx.wait();
-    alert('Purchase successful! Item is now in "Shared with Me"');
+    await customAlert('Purchase successful! Item is now in "Shared with Me"');
     loadCurrentView();
-  } catch (e) { alert(e.message); }
+  } catch (e) { await customAlert(e.message); }
 }
 
 function openPreview(cid, name, mime) {
@@ -1449,5 +1563,66 @@ g('themeToggleBtn').addEventListener('click', () => {
     icon.classList.add('fa-sun');
   }
 });
+
+// --- Custom Native Dialog Replacements ---
+
+window.customAlert = function (message) {
+  return new Promise((resolve) => {
+    g('customAlertMessage').innerText = message;
+    showModal('customAlertModal');
+
+    const onOk = () => {
+      closeModal('customAlertModal');
+      g('customAlertOkBtn').removeEventListener('click', onOk);
+      resolve();
+    };
+
+    g('customAlertOkBtn').addEventListener('click', onOk);
+  });
+};
+
+window.customConfirm = function (message) {
+  return new Promise((resolve) => {
+    g('customConfirmMessage').innerText = message;
+    showModal('customConfirmModal');
+
+    const cleanup = () => {
+      closeModal('customConfirmModal');
+      g('customConfirmOkBtn').removeEventListener('click', onConfirm);
+      g('customConfirmCancelBtn').removeEventListener('click', onCancel);
+    };
+
+    const onConfirm = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+
+    g('customConfirmOkBtn').addEventListener('click', onConfirm);
+    g('customConfirmCancelBtn').addEventListener('click', onCancel);
+  });
+};
+
+window.customPrompt = function (message, defaultVal = '') {
+  return new Promise((resolve) => {
+    g('customPromptMessage').innerText = message;
+    const input = g('customPromptInput');
+    input.value = defaultVal;
+    showModal('customPromptModal');
+    input.focus();
+
+    const cleanup = () => {
+      closeModal('customPromptModal');
+      g('customPromptSubmitBtn').removeEventListener('click', onSubmit);
+      g('customPromptCancelBtn').removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+    };
+
+    const onSubmit = () => { cleanup(); resolve(input.value); };
+    const onCancel = () => { cleanup(); resolve(null); };
+    const onKey = (e) => { if (e.key === 'Enter') onSubmit(); };
+
+    g('customPromptSubmitBtn').addEventListener('click', onSubmit);
+    g('customPromptCancelBtn').addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+  });
+};
 
 init();
