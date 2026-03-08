@@ -33,23 +33,32 @@ function isMobileBrowser() {
 }
 
 const CONTRACT_ABI = [
-  "function addFile(string name,string cid,uint256 size,string mime,bytes32 contentHash,string category,uint256 price,string folder) public returns (uint256)",
-  "function getFilesByOwner(address owner) public view returns (uint256[])",
-  "function getSharedFiles(address user) public view returns (uint256[])",
-  "function getMarketFiles() public view returns (uint256[])",
-  "function getFile(uint256 id) public view returns (uint256,string,string,uint256,string,address,uint256,bool,bytes32,string,uint256,string)",
-  "function moveFile(uint256 id, string newFolder, string newCategory) public",
-  "function removeFile(uint256 id) public",
-  "function transferFile(uint256 id, address to) public",
-  "function hasAccess(uint256 id, address user) public view returns (bool)",
-  "function getHistory(uint256 id) public view returns (tuple(address actor, string action, uint256 timestamp)[])",
-  "function grantAccess(uint256 id, address to) public",
-  "function revokeAccess(uint256 id, address user) public",
-  "function buyAccess(uint256 id) public payable",
-  "function verifyFileByHash(bytes32 hash) public view returns (bool, uint256, address, string, uint256)",
-  "event AccessGranted(uint256 indexed id, address indexed to)",
   "event AccessBought(uint256 indexed id, address indexed buyer, uint256 price)",
-  "event AccessRevoked(uint256 indexed id, address indexed to)"
+  "event AccessGranted(uint256 indexed id, address indexed to)",
+  "event AccessRevoked(uint256 indexed id, address indexed to)",
+  "event FileAdded(uint256 indexed id, address indexed owner, string cid, string name)",
+  "event FileRemoved(uint256 indexed id, address indexed owner)",
+  "event FileTransferred(uint256 indexed id, address indexed from, address indexed to)",
+  "event PriceChanged(uint256 indexed id, uint256 newPrice)",
+  "function addFile(string name, string cid, uint256 size, string mime, bytes32 contentHash, string category, uint256 price, string folder) returns (uint256)",
+  "function batchMoveFiles(uint256[] ids, string[] newFolders, string[] newCategories)",
+  "function buyAccess(uint256 id) payable",
+  "function editName(uint256 id, string newName)",
+  "function getFile(uint256 id) view returns (uint256 _id, string name, string cid, uint256 size, string mime, address owner, uint256 timestamp, bool deleted, bytes32 contentHash, string category, uint256 price, string folder)",
+  "function getFilesByOwner(address owner) view returns (uint256[])",
+  "function getHistory(uint256 id) view returns (tuple(address actor, string action, uint256 timestamp)[])",
+  "function getMarketFiles() view returns (uint256[])",
+  "function getSharedFiles(address user) view returns (uint256[])",
+  "function grantAccess(uint256 id, address to)",
+  "function hasAccess(uint256 id, address user) view returns (bool)",
+  "function hashExists(bytes32) view returns (bool)",
+  "function moveFile(uint256 id, string newFolder, string newCategory)",
+  "function removeFile(uint256 id)",
+  "function revokeAccess(uint256 id, address user)",
+  "function setPrice(uint256 id, uint256 newPrice)",
+  "function totalFiles() view returns (uint256)",
+  "function transferFile(uint256 id, address to)",
+  "function verifyFileByHash(bytes32 hash) view returns (bool found, uint256 id, address owner, string category, uint256 timestamp)"
 ];
 
 async function init() {
@@ -304,6 +313,19 @@ g('createFolderBtn').addEventListener('click', () => {
 // Navigation
 document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', (e) => {
+    if (el.id === 'navPublicVerify') {
+      currentView = 'publicverify';
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      el.classList.add('active');
+      g('viewTitle').innerText = 'Public Verification';
+
+      // Hide standard grid and breadcrumbs, show verification section
+      g('filesGrid').style.display = 'none';
+      if (g('breadcrumbsWrapper')) g('breadcrumbsWrapper').style.display = 'none';
+      g('publicVerifySection').style.display = 'block';
+      return;
+    }
+
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     el.classList.add('active');
     currentView = el.getAttribute('data-view');
@@ -311,12 +333,123 @@ document.querySelectorAll('.nav-item').forEach(el => {
     const titles = { 'myfiles': 'My Files', 'sharedfiles': 'Shared With Me', 'marketfiles': 'Marketplace' };
     g('viewTitle').innerText = titles[currentView];
 
+    // Restore grid view components
+    g('publicVerifySection').style.display = 'none';
+    g('filesGrid').style.display = 'grid';
+    if (g('breadcrumbsWrapper')) g('breadcrumbsWrapper').style.display = 'flex';
+
     // Clear search/filter on navigation change
     g('searchInput').value = ''; currentSearchQuery = '';
     g('categoryFilter').value = 'All'; currentCategoryFilter = 'All';
     loadCurrentView();
   });
 });
+
+// Inner Public Verification Logic
+const vDropInner = g('verifyDropZoneInner');
+const vInputInner = g('verifyInputInner');
+
+vDropInner.addEventListener('click', () => vInputInner.click());
+
+vDropInner.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  vDropInner.style.background = 'rgba(167, 139, 250, 0.2)';
+});
+
+vDropInner.addEventListener('dragleave', () => {
+  vDropInner.style.background = 'rgba(0,0,0,0.2)';
+});
+
+vDropInner.addEventListener('drop', (e) => {
+  e.preventDefault();
+  vDropInner.style.background = 'rgba(0,0,0,0.2)';
+  if (e.dataTransfer.files.length) runInnerVerification(e.dataTransfer.files[0]);
+});
+
+vInputInner.addEventListener('change', (e) => {
+  if (e.target.files.length) runInnerVerification(e.target.files[0]);
+});
+
+async function runInnerVerification(file) {
+  const status = g('verifyStatusInner');
+  const resBox = g('verifyResultInner');
+  const histTitle = g('verifyHistoryTitleInner');
+  const histList = g('verifyHistoryListInner');
+
+  status.innerText = "Computing cryptographic hash...";
+  resBox.className = "verify-result";
+  histTitle.style.display = 'none';
+  histList.style.display = 'none';
+  histList.innerHTML = '';
+
+  try {
+    const hash = await computeContentHash(file);
+    status.innerText = `Hash: ${hash.slice(0, 10)}... Querying Blockchain...`;
+
+    const res = await fetch('/verify/' + hash);
+    const data = await res.json();
+
+    if (data.found) {
+      status.innerText = "";
+      resBox.className = "verify-result success";
+      const date = new Date(Number(data.timestamp) * 1000).toLocaleString();
+      resBox.innerHTML = `
+        <strong style="color:#34d399"><i class="fa-solid fa-check-circle"></i> Verified on Blockchain</strong><br/><br/>
+        <b>Owner:</b> ${data.owner}<br/>
+        <b>Category:</b> ${data.category}<br/>
+        <b>Timestamp:</b> ${date}
+      `;
+
+      // If connected owner requests it, load history inline (since verify endpoint returns full file details id in production, we can also query the events if we have ID. Wait, the endpoint gives us 'data.id' if we passed it in the backend. Let's assume we can fetch '/myfiles/:owner' and match hash to get ID.)
+      try {
+        status.innerText = "Fetching securely logged history...";
+        let matchedId = null;
+        const allFilesRes = await fetch('/myfiles/' + data.owner);
+        const allFilesData = await allFilesRes.json();
+        const match = allFilesData.files.find(f => f.contentHash === hash);
+        if (match) {
+          matchedId = match.id;
+        }
+
+        if (matchedId) {
+          histTitle.style.display = 'block';
+          histList.style.display = 'flex';
+          histList.innerHTML = '<div class="loader" style="margin:20px auto; border-top-color:#a78bfa;"></div>';
+
+          const logs = await contract.getHistory(matchedId);
+          histList.innerHTML = '';
+          if (!logs.length) {
+            histList.innerHTML = '<p style="color:var(--muted)">No history found.</p>';
+          } else {
+            for (let i = logs.length - 1; i >= 0; i--) {
+              const l = logs[i];
+              const div = document.createElement('div');
+              div.className = 'history-item';
+              div.style.background = 'rgba(255,255,255,0.05)';
+              div.style.padding = '12px';
+              div.style.borderRadius = '8px';
+              div.innerHTML = `
+                 <div class="actor"><i class="fa-solid fa-address-card"></i> Actor: <span>${l.actor}</span></div>
+                 <div class="action"><i class="fa-solid fa-bolt"></i> ${l.action}</div>
+                 <div class="time"><i class="fa-solid fa-clock"></i> ${new Date(Number(l.timestamp) * 1000).toLocaleString()}</div>
+               `;
+              histList.appendChild(div);
+            }
+          }
+        }
+        status.innerText = "";
+      } catch (e) {
+        status.innerText = "Error loading history: " + e.message;
+      }
+    } else {
+      status.innerText = "";
+      resBox.className = "verify-result failed";
+      resBox.innerHTML = `<strong style="color:#ef4444"><i class="fa-solid fa-triangle-exclamation"></i> Not Found</strong><br/><br/>This file's hash does not exist on the DriveX smart contract.`;
+    }
+  } catch (e) {
+    status.innerText = "Error: " + e.message;
+  }
+}
 
 function syncCategories(allFiles) {
   // Parse dynamic categories
@@ -429,7 +562,7 @@ function renderArchitecture(allFiles) {
 
     if (!matchesCategory || !matchesSearch) return;
 
-    if (isSearchActive) {
+    if (isSearchActive || currentView === 'marketfiles') {
       displayFiles.push(f);
       return;
     }
@@ -447,8 +580,8 @@ function renderArchitecture(allFiles) {
     }
   });
 
-  // 2. Add purely virtual folders logic if no search is active
-  if (!isSearchActive) {
+  // 2. Add purely virtual folders logic if no search is active or market view
+  if (!isSearchActive && currentView !== 'marketfiles') {
     virtualFolders.forEach(vf => {
       const isRoot = currentFolder === '/';
       if (vf.startsWith(currentFolder + (isRoot ? '' : '/'))) {
@@ -468,8 +601,8 @@ function renderArchitecture(allFiles) {
     return;
   }
 
-  // Render Folders First (skip if searching)
-  if (!isSearchActive) {
+  // Render Folders First (skip if searching or in marketplace)
+  if (!isSearchActive && currentView !== 'marketfiles') {
     folders.forEach(folderPath => {
       const folderName = folderPath.split('/').pop();
       const card = document.createElement('div');
@@ -517,7 +650,7 @@ function renderArchitecture(allFiles) {
       thumb.innerHTML = `<i class="fa-solid fa-file"></i><span class="file-ext">${ext}</span>`;
     }
 
-    thumb.onclick = (e) => { e.stopPropagation(); openPreview(f.cid, f.name); };
+    thumb.onclick = (e) => { e.stopPropagation(); openPreview(f.cid, f.name, f.mime); };
 
     const info = document.createElement('div');
     info.className = 'file-info';
@@ -585,6 +718,13 @@ function showContextMenu(x, y, file) {
   contextMenu.style.top = `${y}px`;
 
   const isOwner = file.owner.toLowerCase() === currentAccount.toLowerCase();
+
+  if (!isOwner && currentView === 'marketfiles') {
+    g('ctxDownload').style.display = 'none';
+  } else {
+    g('ctxDownload').style.display = '';
+  }
+
   g('ctxOwnerOnlyGroup').style.display = isOwner ? 'flex' : 'none';
   g('ctxMarketGroup').style.display = (!isOwner && file.price > 0 && currentView === 'marketfiles') ? 'flex' : 'none';
 
@@ -613,6 +753,82 @@ g('ctxFolderDelete').addEventListener('click', () => {
   showModal('deleteFolderModal');
 });
 
+g('ctxFolderRename').addEventListener('click', () => {
+  g('renameFolderCurrent').value = currentActionFolder;
+  g('renameFolderInput').value = currentActionFolder.split('/').pop();
+  g('renameFolderStatusBox').innerText = '';
+  showModal('renameFolderModal');
+});
+
+g('confirmFolderRenameBtn').addEventListener('click', async () => {
+  const newName = g('renameFolderInput').value.trim().replace(/\//g, '');
+  if (!newName) return alert("Folder name cannot be empty");
+
+  const btn = g('confirmFolderRenameBtn');
+  const loader = g('renameFolderLoader');
+  const stat = g('renameFolderStatusBox');
+
+  btn.disabled = true;
+  loader.style.display = 'block';
+
+  try {
+    // Determine new folder path
+    const parts = currentActionFolder.split('/');
+    parts[parts.length - 1] = newName;
+    const newPath = parts.join('/');
+
+    // Also update virtual folders if they match
+    virtualFolders = virtualFolders.map(vf => {
+      if (vf === currentActionFolder) return newPath;
+      if (vf.startsWith(currentActionFolder + '/')) return newPath + vf.substring(currentActionFolder.length);
+      return vf;
+    });
+
+    // Find all files that are inside this folder
+    const filesToMove = [];
+    const newFolders = [];
+    const newCategories = [];
+
+    // Fetch all files
+    const res = await fetch('/myfiles/' + currentAccount);
+    const data = await res.json();
+    const allFiles = data.files || [];
+
+    allFiles.forEach(f => {
+      const fileFolder = f.folder || '/';
+      if (fileFolder === currentActionFolder || fileFolder.startsWith(currentActionFolder + '/')) {
+        filesToMove.push(f.id);
+        const updatedFolder = newPath + fileFolder.substring(currentActionFolder.length);
+        newFolders.push(updatedFolder);
+        newCategories.push(f.category || 'General');
+      }
+    });
+
+    if (filesToMove.length > 0) {
+      stat.innerText = `Moving ${filesToMove.length} files on the blockchain...`;
+      const tx = await contract.batchMoveFiles(filesToMove, newFolders, newCategories);
+      stat.innerHTML = `Transaction Sent: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" style="color:var(--accent)">View</a>. Waiting confirmation...`;
+      await tx.wait();
+    }
+
+    stat.innerText = 'Folder renamed successfully!';
+    setTimeout(() => {
+      // If we were inside the renamed folder, stay inside the new path
+      if (currentFolder === currentActionFolder || currentFolder.startsWith(currentActionFolder + '/')) {
+        currentFolder = newPath + currentFolder.substring(currentActionFolder.length);
+      }
+      closeModal('renameFolderModal');
+      loadCurrentView();
+    }, 1500);
+
+  } catch (err) {
+    stat.innerText = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    loader.style.display = 'none';
+  }
+});
+
 g('confirmFolderDeleteBtn').addEventListener('click', async () => {
   const btn = g('confirmFolderDeleteBtn');
   const loader = g('deleteFolderLoader');
@@ -638,9 +854,31 @@ g('confirmFolderDeleteBtn').addEventListener('click', async () => {
   }, 1000);
 });
 
-g('ctxDownload').addEventListener('click', () => {
+g('ctxDownload').addEventListener('click', async () => {
   const url = `https://gateway.pinata.cloud/ipfs/${currentActionFile.cid}`;
-  window.open(url, '_blank');
+  const toast = g('downloadToast');
+
+  try {
+    toast.style.display = 'flex';
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = currentActionFile.name; // Use the actual file name
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error("Download failed:", error);
+    alert("Failed to download file. Please try again.");
+  } finally {
+    toast.style.display = 'none';
+  }
 });
 
 g('ctxVerify').addEventListener('click', () => {
@@ -674,10 +912,87 @@ g('ctxMove').addEventListener('click', () => {
   showModal('moveModal');
 });
 
+g('ctxRename').addEventListener('click', () => {
+  g('renameInput').value = currentActionFile.name;
+  g('renameStatusBox').innerText = '';
+  showModal('renameModal');
+});
+
+g('confirmRenameBtn').addEventListener('click', async () => {
+  const newName = g('renameInput').value.trim();
+  if (!newName) return alert("Name cannot be empty");
+
+  const btn = g('confirmRenameBtn');
+  const loader = g('renameLoader');
+  const stat = g('renameStatusBox');
+
+  btn.disabled = true;
+  loader.style.display = 'block';
+  stat.innerText = 'Initiating transaction...';
+
+  try {
+    const tx = await contract.editName(currentActionFile.id, newName);
+    stat.innerHTML = `Transaction Sent: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" style="color:var(--accent)">View</a>. Waiting confirmation...`;
+    await tx.wait();
+
+    stat.innerText = 'File renamed successfully!';
+    setTimeout(() => {
+      closeModal('renameModal');
+      loadCurrentView();
+    }, 1500);
+  } catch (e) {
+    stat.innerText = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    loader.style.display = 'none';
+  }
+});
+
 g('ctxDelete').addEventListener('click', () => {
   g('deleteTargetName').innerText = currentActionFile.name;
   g('deleteStatusBox').innerText = '';
   showModal('deleteModal');
+});
+
+g('ctxSetPrice').addEventListener('click', () => {
+  g('setPriceValue').value = currentActionFile.price > 0 ? ethers.utils.formatEther(currentActionFile.price) : '0';
+  g('setPriceStatusBox').innerText = '';
+  showModal('setPriceModal');
+});
+
+g('confirmSetPriceBtn').addEventListener('click', async () => {
+  const priceEth = g('setPriceValue').value;
+  let priceWei;
+  try {
+    priceWei = ethers.utils.parseEther(priceEth || "0");
+  } catch (e) {
+    return alert("Invalid price format");
+  }
+
+  const btn = g('confirmSetPriceBtn');
+  const loader = g('setPriceLoader');
+  const stat = g('setPriceStatusBox');
+
+  btn.disabled = true;
+  loader.style.display = 'block';
+  stat.innerText = 'Initiating transaction...';
+
+  try {
+    const tx = await contract.setPrice(currentActionFile.id, priceWei);
+    stat.innerHTML = `Transaction Sent: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" style="color:var(--accent)">View</a>. Waiting confirmation...`;
+    await tx.wait();
+
+    stat.innerText = 'Price Updated Successfully!';
+    setTimeout(() => {
+      closeModal('setPriceModal');
+      loadCurrentView();
+    }, 1500);
+  } catch (e) {
+    stat.innerText = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    loader.style.display = 'none';
+  }
 });
 
 g('confirmDeleteBtn').addEventListener('click', async () => {
@@ -977,10 +1292,9 @@ async function buyFile(id, priceWei) {
   } catch (e) { alert(e.message); }
 }
 
-function openPreview(cid, name) {
+function openPreview(cid, name, mime) {
   const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
   g('previewTitle').innerText = name;
-  g('previewDownload').href = url;
 
   // Reset zoom on open
   currentZoom = 1;
@@ -989,33 +1303,66 @@ function openPreview(cid, name) {
   const viewer = g('previewViewer');
   viewer.innerHTML = `<div class="loader" style="border-top-color:#a78bfa;"></div>`;
 
-  const iframe = document.createElement('iframe');
+  viewer.style.position = 'relative';
+  viewer.style.overflow = 'auto'; // allow scrolling when zoomed
+  viewer.style.display = 'flex';
+  viewer.style.flex = '1';
+  viewer.style.minHeight = '0';
+  viewer.style.justifyContent = 'center';
+  viewer.style.alignItems = 'center';
+  viewer.style.height = '100%';
+  viewer.style.width = '100%';
+  viewer.style.backgroundColor = 'rgba(0,0,0,0.02)';
+
+  const isImage = mime && mime.startsWith('image/');
+  const isVideo = mime && mime.startsWith('video/');
+  const isAudio = mime && mime.startsWith('audio/');
+  const isPdf = mime && mime.includes('pdf');
+  const isText = mime && mime.startsWith('text/');
 
   viewer.innerHTML = '';
 
-  const fallbackDiv = document.createElement('div');
-  fallbackDiv.style.position = 'absolute';
-  fallbackDiv.style.display = 'flex';
-  fallbackDiv.style.flexDirection = 'column';
-  fallbackDiv.style.alignItems = 'center';
-  fallbackDiv.style.gap = '16px';
-  fallbackDiv.style.padding = '20px';
-  fallbackDiv.innerHTML = `
-    <i class="fa-solid fa-file-shield" style="font-size:3rem; color:var(--muted)"></i>
-    <p style="text-align:center; color:var(--muted);">For security, some files cannot be previewed natively in the browser frame.</p>
-    <a href="${url}" target="_blank" class="btn btn-primary"><i class="fa-solid fa-up-right-from-square"></i> Open securely in new tab</a>
-  `;
-
-  iframe.src = url;
-  iframe.style.position = 'relative';
-  iframe.style.zIndex = '10';
-  iframe.style.backgroundColor = '#fff';
-
-  viewer.style.position = 'relative';
-  viewer.style.overflow = 'auto'; // allow scrolling when zoomed
-
-  viewer.appendChild(fallbackDiv);
-  viewer.appendChild(iframe);
+  if (isImage) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.style.objectFit = 'contain';
+    img.style.transition = 'transform 0.15s ease';
+    viewer.appendChild(img);
+  } else if (isVideo || isAudio) {
+    const media = document.createElement(isVideo ? 'video' : 'audio');
+    media.src = url;
+    media.controls = true;
+    media.style.maxWidth = '100%';
+    media.style.maxHeight = '100%';
+    media.style.outline = 'none';
+    media.style.transition = 'transform 0.15s ease';
+    viewer.appendChild(media);
+  } else if (isPdf || isText) {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.style.backgroundColor = '#fff';
+    viewer.appendChild(iframe);
+  } else {
+    // Fallback for unknown/unsupported
+    const fallbackDiv = document.createElement('div');
+    fallbackDiv.style.display = 'flex';
+    fallbackDiv.style.flexDirection = 'column';
+    fallbackDiv.style.alignItems = 'center';
+    fallbackDiv.style.gap = '16px';
+    fallbackDiv.style.padding = '40px';
+    fallbackDiv.innerHTML = `
+      <i class="fa-solid fa-file-shield" style="font-size:4rem; color:var(--muted)"></i>
+      <h3 style="margin:0; color:var(--text);">Preview Not Available</h3>
+      <p style="text-align:center; color:var(--muted); max-width:400px;">This file type (${mime || 'unknown'}) cannot be securely previewed in the browser. Please download it or open securely.</p>
+      <a href="${url}" target="_blank" class="btn btn-primary"><i class="fa-solid fa-up-right-from-square"></i> Open securely in new tab</a>
+    `;
+    viewer.appendChild(fallbackDiv);
+  }
 
   showModal('previewModal');
 }
@@ -1036,7 +1383,7 @@ function applyZoom() {
   const viewer = g('previewViewer');
   // We target the immediate child elements that hold the actual content (img or iframe)
   Array.from(viewer.children).forEach(child => {
-    if (child.tagName === 'IMG' || child.tagName === 'IFRAME') {
+    if (child.tagName === 'IMG' || child.tagName === 'IFRAME' || child.tagName === 'VIDEO') {
       child.style.transform = `scale(${currentZoom})`;
       child.style.transformOrigin = 'center center';
       child.style.transition = 'transform 0.15s ease';

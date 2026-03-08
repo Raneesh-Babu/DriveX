@@ -994,14 +994,17 @@
   <!-- Custom Right Click Context Menu -->
   <div id="contextMenu" class="context-menu">
     <button id="ctxDownload"><i class="fa-solid fa-download"></i> Download</button>
-    <button id="ctxVerify"><i class="fa-solid fa-shield-check"></i> Verify Integrity</button>
+    <button id="ctxVerify"><i class="fa-solid fa-file-shield"></i> Verify Integrity</button>
     <button id="ctxHistory"><i class="fa-solid fa-clock-rotate-left"></i> View History</button>
     <div id="ctxOwnerOnlyGroup" style="display:none; flex-direction:column; gap:4px; width:100%;">
       <hr />
       <button id="ctxShareView"><i class="fa-solid fa-eye"></i> Share (View Only)</button>
       <button id="ctxShareOwnership"><i class="fa-solid fa-handshake"></i> Transfer Ownership</button>
       <button id="ctxManageAccess"><i class="fa-solid fa-users-gear"></i> Manage Access</button>
+      <button id="ctxRename"><i class="fa-solid fa-pen-to-square"></i> Rename File</button>
       <button id="ctxMove"><i class="fa-solid fa-folder-tree"></i> Move / Categorize</button>
+      <button id="ctxSetPrice"><i class="fa-solid fa-tag"></i> <span id="ctxSetPriceText">Sell on
+          Marketplace</span></button>
       <hr />
       <button id="ctxDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete File</button>
     </div>
@@ -1014,6 +1017,7 @@
   <!-- Folder Context Menu -->
   <div id="folderContextMenu" class="context-menu">
     <button id="ctxFolderOpen"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
+    <button id="ctxFolderRename"><i class="fa-solid fa-pen-to-square"></i> Rename Folder</button>
     <hr />
     <button id="ctxFolderDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete Folder</button>
   </div>
@@ -1101,6 +1105,11 @@
         <div class="nav-item" data-view="marketfiles">
           <i class="fa-solid fa-store"></i> Marketplace
         </div>
+        <label
+          style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top:12px;">Tools</label>
+        <div class="nav-item" id="navPublicVerify">
+          <i class="fa-solid fa-file-shield"></i> Public Verification
+        </div>
       </div>
       <div style="margin-top: auto;">
         <button id="signoutBtn" class="btn btn-ghost"
@@ -1132,215 +1141,326 @@
       </header>
       <div class="content-area">
 
-        <div class="breadcrumbs-wrapper">
-          <div id="folderBreadcrumbs" class="breadcrumbs">
-            <span class="breadcrumb-item" data-path="/">Root</span>
+        <div class="content-area">
+
+          <div class="breadcrumbs-wrapper" id="breadcrumbsWrapper">
+            <div id="folderBreadcrumbs" class="breadcrumbs">
+              <span class="breadcrumb-item" data-path="/">Root</span>
+            </div>
+            <button id="createFolderBtn" class="btn" style="font-size:0.9rem;"><i class="fa-solid fa-folder-plus"></i>
+              New
+              Folder</button>
           </div>
-          <button id="createFolderBtn" class="btn" style="font-size:0.9rem;"><i class="fa-solid fa-folder-plus"></i> New
-            Folder</button>
-        </div>
 
-        <div id="filesGrid" class="grid">
-          <!-- Files rendered here -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Datalist for Categories (Reusable) -->
-  <datalist id="categoryOptions">
-    <!-- Populated dynamically -->
-    <option value="General"></option>
-    <option value="Hospital"></option>
-    <option value="Education"></option>
-    <option value="Legal"></option>
-    <option value="Art"></option>
-  </datalist>
-
-  <!-- Upload Modal -->
-  <div id="uploadModal" class="overlay">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal('uploadModal')">&times;</button>
-      <h2>Configure Upload</h2>
-      <div class="form-group">
-        <label>Selected File</label>
-        <div id="uploadFileName"
-          style="padding:12px; background:rgba(255,255,255,0.05); border-radius:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-          filename.ext</div>
-      </div>
-      <div class="form-group">
-        <label>Name</label>
-        <input type="text" id="uploadName" placeholder="File display name" />
-      </div>
-      <div class="form-group" style="display:flex; flex-direction:row; gap:12px;">
-        <div style="flex:1;">
-          <label>Folder (e.g. `docs`)</label>
-          <input type="text" id="uploadFolder" value="/" placeholder="Root = /" />
-        </div>
-        <div style="flex:1;">
-          <label>Category</label>
-          <input type="text" id="uploadCategory" list="categoryOptions" placeholder="Type or select..."
-            value="General" />
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Price (ETH) - 0 for private/free</label>
-        <input type="number" id="uploadPrice" step="0.0001" min="0" value="0" />
-      </div>
-      <div class="form-group" style="margin-top:12px;">
-        <button id="confirmUploadBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
-          <i class="fa-solid fa-cube"></i> Deploy to Blockchain
-          <div id="uploadLoader" class="loader"
-            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
-        </button>
-      </div>
-      <div id="uploadStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- Move File Modal -->
-  <div id="moveModal" class="overlay">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal('moveModal')">&times;</button>
-      <h2>Move / Re-Categorize File</h2>
-      <div class="form-group">
-        <label>New Folder Path</label>
-        <input type="text" id="moveFolder" placeholder="e.g. /work/documents" />
-      </div>
-      <div class="form-group">
-        <label>New Category</label>
-        <input type="text" id="moveCategory" list="categoryOptions" placeholder="Type or select..." value="General" />
-      </div>
-      <div class="form-group" style="margin-top:12px;">
-        <button id="confirmMoveBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
-          <i class="fa-solid fa-folder-tree"></i> Move File
-          <div id="moveLoader" class="loader"
-            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
-        </button>
-      </div>
-      <div id="moveStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- Delete File Modal -->
-  <div id="deleteModal" class="overlay">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
-      <h2>Delete File</h2>
-      <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
-        <strong id="deleteTargetName">this file</strong> from the blockchain? This action cannot be undone.
-      </p>
-
-      <div class="form-group" style="margin-top:12px;">
-        <button id="confirmDeleteBtn" class="btn btn-danger" style="justify-content:center; padding:14px; width:100%;">
-          <i class="fa-solid fa-trash"></i> Permanently Delete
-          <div id="deleteLoader" class="loader"
-            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
-        </button>
-      </div>
-      <div id="deleteStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- Delete Folder Modal -->
-  <div id="deleteFolderModal" class="overlay">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal('deleteFolderModal')">&times;</button>
-      <h2>Delete Folder</h2>
-      <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
-        <strong id="deleteFolderTargetName">this folder</strong> and all of its contents from the blockchain? This
-        action cannot be undone.
-      </p>
-
-      <div class="form-group" style="margin-top:12px;">
-        <button id="confirmFolderDeleteBtn" class="btn btn-danger"
-          style="justify-content:center; padding:14px; width:100%;">
-          <i class="fa-solid fa-trash"></i> Delete Folder
-          <div id="deleteFolderLoader" class="loader"
-            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
-        </button>
-      </div>
-      <div id="deleteFolderStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- Share Modal -->
-  <div id="shareModal" class="overlay">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal('shareModal')">&times;</button>
-      <h2 id="shareTitle">Share File</h2>
-      <p id="shareDesc" style="color:var(--muted); font-size:0.9rem;">Grant access to a specific wallet address.</p>
-      <div class="form-group">
-        <label>Recipient Address (0x...)</label>
-        <input type="text" id="shareAddress" placeholder="0x..." />
-      </div>
-      <div class="form-group" style="margin-top:12px;">
-        <button id="confirmShareBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
-          <span id="shareBtnText">Grant Access</span>
-          <div id="shareLoader" class="loader"
-            style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
-        </button>
-      </div>
-      <div id="shareStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
-    </div>
-  </div>
-
-  <!-- Manage Access Modal -->
-  <div id="manageAccessModal" class="overlay">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal('manageAccessModal')">&times;</button>
-      <h2>Manage Access</h2>
-      <p style="color:var(--muted); font-size:0.9rem;">View and revoke access for this file.</p>
-
-      <div id="accessListLoader" class="loader" style="display:none; margin: 20px auto; border-top-color:#a78bfa;">
-      </div>
-
-      <div id="accessList" class="access-list" style="margin-top: 12px;">
-        <!-- Items injected via JS -->
-      </div>
-    </div>
-  </div>
-
-  <!-- History Modal -->
-  <div id="historyModal" class="overlay">
-    <div class="modal" style="max-width: 600px;">
-      <button class="modal-close" onclick="closeModal('historyModal')">&times;</button>
-      <h2>File History</h2>
-      <div id="historyList" class="history-list">
-        <!-- History items here -->
-      </div>
-    </div>
-  </div>
-
-  <!-- Preview Modal -->
-  <div id="previewModal" class="overlay">
-    <div class="modal"
-      style="width: 90vw; max-width: 1200px; height: 90vh; max-height: 900px; padding: 20px; display: flex; flex-direction: column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 id="previewTitle" style="margin:0;">Preview</h3>
-        <div style="display:flex; gap:12px;">
-          <div style="display:flex; gap:4px; background:rgba(255,255,255,0.05); padding:4px; border-radius:8px;">
-            <button id="btnZoomOut" class="btn btn-ghost btn-sm" title="Zoom Out"><i
-                class="fa-solid fa-magnifying-glass-minus"></i></button>
-            <button id="btnZoomReset" class="btn btn-ghost btn-sm" title="Reset Zoom"><i
-                class="fa-solid fa-expand"></i></button>
-            <button id="btnZoomIn" class="btn btn-ghost btn-sm" title="Zoom In"><i
-                class="fa-solid fa-magnifying-glass-plus"></i></button>
+          <div id="filesGrid" class="grid">
+            <!-- Files rendered here -->
           </div>
-          <a id="previewDownload" class="btn btn-primary btn-sm" target="_blank"><i class="fa-solid fa-download"></i>
-            Download</a>
-          <button class="btn btn-ghost btn-sm" onclick="closeModal('previewModal')"><i class="fa-solid fa-xmark"></i>
-            Close</button>
+
+          <!-- Inner Public Verification View -->
+          <div id="publicVerifySection" style="display:none; max-width:800px; margin: 0 auto; padding-top:20px;">
+            <div
+              style="background: var(--card-bg); border: 1px solid var(--card-border); padding:32px; border-radius:16px;">
+              <h2 style="margin-bottom:12px;"><i class="fa-solid fa-file-shield" style="color:#a78bfa;"></i> Verify
+                File Authenticity</h2>
+              <p style="color:var(--muted); margin-bottom:24px;">Upload a downloaded file to independently verify its
+                cryptographic signature and integrity against our smart contract.</p>
+
+              <div id="verifyDropZoneInner"
+                style="border: 2px dashed var(--card-border); padding: 40px; text-align: center; border-radius: 16px; cursor: pointer; transition: all 0.2s; background: rgba(0,0,0,0.2);">
+                <i class="fa-solid fa-file-arrow-up" style="font-size: 3rem; color: #a78bfa; margin-bottom: 16px;"></i>
+                <h3 style="margin: 0 0 8px 0;">Click or Drag File to Verify</h3>
+                <p style="color: var(--muted); margin: 0; font-size: 0.9rem;">No data leaves your device. The hash is
+                  computed locally.</p>
+                <input type="file" id="verifyInputInner" style="display:none" />
+              </div>
+
+              <div id="verifyStatusInner"
+                style="margin-top:24px; color:var(--accent); font-weight:500; height:24px; text-align:center;"></div>
+              <div id="verifyResultInner" class="verify-result" style="width:100%; box-sizing:border-box;"></div>
+
+              <h3 style="margin-top:32px; margin-bottom:16px; display:none;" id="verifyHistoryTitleInner">File History
+              </h3>
+              <div id="verifyHistoryListInner" class="history-list" style="max-height: 400px; display:none;"></div>
+            </div>
+          </div>
+
         </div>
       </div>
-      <div id="previewViewer"></div>
     </div>
-  </div>
 
-  <script type="module" src="https://unpkg.com/@reown/appkit/dist/appkit.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-  <script src="https://unpkg.com/@metamask/sdk@0.34.0/dist/browser/umd/metamask-sdk.js"></script>
-  <script src="app.js"></script>
+    <!-- Datalist for Categories (Reusable) -->
+    <datalist id="categoryOptions">
+      <!-- Populated dynamically -->
+      <option value="General"></option>
+      <option value="Hospital"></option>
+      <option value="Education"></option>
+      <option value="Legal"></option>
+      <option value="Art"></option>
+    </datalist>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('uploadModal')">&times;</button>
+        <h2>Configure Upload</h2>
+        <div class="form-group">
+          <label>Selected File</label>
+          <div id="uploadFileName"
+            style="padding:12px; background:rgba(255,255,255,0.05); border-radius:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            filename.ext</div>
+        </div>
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="uploadName" placeholder="File display name" />
+        </div>
+        <div class="form-group" style="display:flex; flex-direction:row; gap:12px;">
+          <div style="flex:1;">
+            <label>Folder (e.g. `docs`)</label>
+            <input type="text" id="uploadFolder" value="/" placeholder="Root = /" />
+          </div>
+          <div style="flex:1;">
+            <label>Category</label>
+            <input type="text" id="uploadCategory" list="categoryOptions" placeholder="Type or select..."
+              value="General" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Price (ETH) - 0 for private/free</label>
+          <input type="number" id="uploadPrice" step="0.0001" min="0" value="0" />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmUploadBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <i class="fa-solid fa-cube"></i> Deploy to Blockchain
+            <div id="uploadLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="uploadStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Move File Modal -->
+    <div id="moveModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('moveModal')">&times;</button>
+        <h2>Move / Re-Categorize File</h2>
+        <div class="form-group">
+          <label>New Folder Path</label>
+          <input type="text" id="moveFolder" placeholder="e.g. /work/documents" />
+        </div>
+        <div class="form-group">
+          <label>New Category</label>
+          <input type="text" id="moveCategory" list="categoryOptions" placeholder="Type or select..." value="General" />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmMoveBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <i class="fa-solid fa-folder-tree"></i> Move File
+            <div id="moveLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="moveStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Delete File Modal -->
+    <div id="deleteModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+        <h2>Delete File</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
+          <strong id="deleteTargetName">this file</strong> from the blockchain? This action cannot be undone.
+        </p>
+
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmDeleteBtn" class="btn btn-danger"
+            style="justify-content:center; padding:14px; width:100%;">
+            <i class="fa-solid fa-trash"></i> Permanently Delete
+            <div id="deleteLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="deleteStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Delete Folder Modal -->
+    <div id="deleteFolderModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('deleteFolderModal')">&times;</button>
+        <h2>Delete Folder</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete
+          <strong id="deleteFolderTargetName">this folder</strong> and all of its contents from the blockchain? This
+          action cannot be undone.
+        </p>
+
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmFolderDeleteBtn" class="btn btn-danger"
+            style="justify-content:center; padding:14px; width:100%;">
+            <i class="fa-solid fa-trash"></i> Delete Folder
+            <div id="deleteFolderLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="deleteFolderStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Rename File Modal -->
+    <div id="renameModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('renameModal')">&times;</button>
+        <h2>Rename File</h2>
+        <div class="form-group" style="margin-top:12px;">
+          <label>New File Name</label>
+          <input type="text" id="renameInput" placeholder="Enter new name" />
+        </div>
+
+        <div class="form-group" style="margin-top:20px;">
+          <button id="confirmRenameBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <span>Rename</span>
+            <div id="renameLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="renameStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Rename Folder Modal -->
+    <div id="renameFolderModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('renameFolderModal')">&times;</button>
+        <h2>Rename Folder</h2>
+        <p style="color:var(--muted); font-size:0.9rem;">Renaming a folder will batch-move all files inside it to the
+          new
+          folder name path on the blockchain.</p>
+        <div class="form-group" style="margin-top:12px;">
+          <label>Current Folder</label>
+          <input type="text" id="renameFolderCurrent" disabled style="background:var(--card-bg); color:var(--muted);" />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label>New Folder Name</label>
+          <input type="text" id="renameFolderInput" placeholder="Enter new folder name" />
+        </div>
+
+        <div class="form-group" style="margin-top:20px;">
+          <button id="confirmFolderRenameBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <span>Rename Folder</span>
+            <div id="renameFolderLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="renameFolderStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Set Price Modal -->
+    <div id="setPriceModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('setPriceModal')">&times;</button>
+        <h2>Sell on Marketplace</h2>
+        <p style="color:var(--muted); font-size:0.9rem;">Set a price in ETH to sell this file to others. Setting the
+          price
+          to 0 will remove it from the marketplace.</p>
+        <div class="form-group" style="margin-top:12px;">
+          <label>Price (ETH)</label>
+          <input type="number" id="setPriceValue" placeholder="0.0" step="0.0001" min="0" />
+        </div>
+
+        <div class="form-group" style="margin-top:20px;">
+          <button id="confirmSetPriceBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <span>Set Price</span>
+            <div id="setPriceLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="setPriceStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('shareModal')">&times;</button>
+        <h2 id="shareTitle">Share File</h2>
+        <p id="shareDesc" style="color:var(--muted); font-size:0.9rem;">Grant access to a specific wallet address.</p>
+        <div class="form-group">
+          <label>Recipient Address (0x...)</label>
+          <input type="text" id="shareAddress" placeholder="0x..." />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmShareBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <span id="shareBtnText">Grant Access</span>
+            <div id="shareLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="shareStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Manage Access Modal -->
+    <div id="manageAccessModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('manageAccessModal')">&times;</button>
+        <h2>Manage Access</h2>
+        <p style="color:var(--muted); font-size:0.9rem;">View and revoke access for this file.</p>
+
+        <div id="accessListLoader" class="loader" style="display:none; margin: 20px auto; border-top-color:#a78bfa;">
+        </div>
+
+        <div id="accessList" class="access-list" style="margin-top: 12px;">
+          <!-- Items injected via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="overlay">
+      <div class="modal" style="max-width: 600px;">
+        <button class="modal-close" onclick="closeModal('historyModal')">&times;</button>
+        <h2>File History</h2>
+        <div id="historyList" class="history-list">
+          <!-- History items here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="overlay">
+      <div class="modal"
+        style="width: 90vw; max-width: 1200px; height: 90vh; max-height: 900px; padding: 20px; display: flex; flex-direction: column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 id="previewTitle" style="margin:0;">Preview</h3>
+          <div style="display:flex; gap:12px;">
+            <div style="display:flex; gap:4px; background:rgba(255,255,255,0.05); padding:4px; border-radius:8px;">
+              <button id="btnZoomOut" class="btn btn-ghost btn-sm" title="Zoom Out"><i
+                  class="fa-solid fa-magnifying-glass-minus"></i></button>
+              <button id="btnZoomReset" class="btn btn-ghost btn-sm" title="Reset Zoom"><i
+                  class="fa-solid fa-expand"></i></button>
+              <button id="btnZoomIn" class="btn btn-ghost btn-sm" title="Zoom In"><i
+                  class="fa-solid fa-magnifying-glass-plus"></i></button>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="closeModal('previewModal')"><i class="fa-solid fa-xmark"></i>
+              Close</button>
+          </div>
+        </div>
+        <div id="previewViewer"></div>
+      </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/@reown/appkit/dist/appkit.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://unpkg.com/@metamask/sdk@0.34.0/dist/browser/umd/metamask-sdk.js"></script>
+    <!-- Global Loading / Toast -->
+    <div id="downloadToast"
+      style="display:none; position:fixed; bottom:20px; right:20px; background:var(--bg-dark); border:1px solid var(--card-border); padding:16px 24px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); z-index:9999; align-items:center; gap:12px; color:var(--text);">
+      <div class="loader" style="width:20px; height:20px; border-width:2px;"></div>
+      <span id="downloadToastText">Downloading file...</span>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 
 </html>

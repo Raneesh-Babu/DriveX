@@ -33,6 +33,7 @@ contract Drive {
     event AccessGranted(uint256 indexed id, address indexed to);
     event AccessRevoked(uint256 indexed id, address indexed to);
     event AccessBought(uint256 indexed id, address indexed buyer, uint256 price);
+    event PriceChanged(uint256 indexed id, uint256 newPrice);
 
     function _logHistory(uint256 id, string memory action) internal {
         fileHistory[id].push(HistoryLog(msg.sender, action, block.timestamp));
@@ -178,6 +179,28 @@ contract Drive {
         _logHistory(id, "Moved / Changed Category");
     }
 
+    function batchMoveFiles(uint256[] memory ids, string[] memory newFolders, string[] memory newCategories) public {
+        require(ids.length == newFolders.length && ids.length == newCategories.length, "Mismatched arrays");
+        for(uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            require(id < files.length, "Invalid id");
+            FileRecord storage f = files[id];
+            require(f.owner == msg.sender, "Not owner");
+            f.folder = newFolders[i];
+            f.category = newCategories[i];
+            _logHistory(id, "Moved / Changed Category");
+        }
+    }
+
+    function setPrice(uint256 id, uint256 newPrice) public {
+        require(id < files.length, "Invalid id");
+        FileRecord storage f = files[id];
+        require(f.owner == msg.sender, "Not owner");
+        f.price = newPrice;
+        _logHistory(id, "Price Changed");
+        emit PriceChanged(id, newPrice);
+    }
+
     function grantAccess(uint256 id, address to) public {
         require(id < files.length, "Invalid id");
         FileRecord storage f = files[id];
@@ -204,14 +227,17 @@ contract Drive {
         require(f.price > 0, "Not for sale");
         require(msg.value >= f.price, "Insufficient payment");
         require(f.owner != msg.sender, "Owner cannot buy");
-        require(!fileAccess[id][msg.sender], "Already have access");
 
+        address previousOwner = f.owner;
+        f.owner = msg.sender;
+        f.price = 0;
         fileAccess[id][msg.sender] = true;
         
-        payable(f.owner).transfer(msg.value);
+        payable(previousOwner).transfer(msg.value);
         
-        _logHistory(id, "Access purchased");
+        _logHistory(id, "Purchased Ownership");
         emit AccessBought(id, msg.sender, msg.value);
+        emit FileTransferred(id, previousOwner, msg.sender);
     }
 
     function getHistory(uint256 id) public view returns (HistoryLog[] memory) {

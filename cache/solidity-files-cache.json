@@ -72,8 +72,8 @@
       ]
     },
     "D:\\blockchain\\working version\\v7.0\\drive-app\\contracts\\Drive.sol": {
-      "lastModificationDate": 1772878680146,
-      "contentHash": "9fed97f979e53e3bd436d7ae756bea22",
+      "lastModificationDate": 1772953575328,
+      "contentHash": "e29592243424d559e5976688c1273cb8",
       "sourceName": "contracts/Drive.sol",
       "solcConfig": {
         "version": "0.8.17",
