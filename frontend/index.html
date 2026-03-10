@@ -659,9 +659,109 @@
       font-weight: 500;
     }
 
+    /* Storage Indicator Components */
+    .storage-indicator {
+      margin-top: 24px;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    body.light-theme .storage-indicator {
+      background: rgba(255, 255, 255, 0.7);
+      border-color: rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+
+    .storage-progress-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    body.light-theme .storage-progress-bg {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    .storage-progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #a78bfa, #f472b6);
+      border-radius: 3px;
+      transition: width 0.5s ease-out;
+    }
+
+    body.light-theme .storage-progress-fill {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+    }
+
+    /* Wallet Button Hover Flip */
+    #accountStatus {
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s;
+      min-width: 140px;
+      justify-content: center;
+    }
+
+    #accountStatus .wallet-default {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.22s, transform 0.22s;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #accountStatus .wallet-disconnect {
+      position: absolute;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #f87171;
+      font-weight: 600;
+      transition: opacity 0.22s, transform 0.22s;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    #accountStatus:hover .wallet-default {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    #accountStatus:hover .wallet-disconnect {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #accountStatus:hover {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    body.light-theme #accountStatus:hover {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
     /* Public Area / Login Screen */
     .public-screen {
       display: flex;
+      flex-direction: column;
       position: fixed;
       inset: 0;
       background: var(--bg-dark);
@@ -673,76 +773,224 @@
       display: none !important;
     }
 
-    .split-layout {
+    /* Public Header */
+    .public-header {
       display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 60px;
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(10, 10, 15, 0.4);
+      position: sticky;
+      top: 0;
+      z-index: 2010;
+    }
+
+    body.light-theme .public-header {
+      background: rgba(255, 255, 255, 0.8);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .public-nav {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .public-nav-item {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .public-nav-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .public-nav-item.active {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+    }
+
+    body.light-theme .public-nav-item:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    body.light-theme .public-nav-item.active {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Public Views container */
+    .public-view-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .public-view {
+      display: none;
+      flex: 1;
+      animation: fadeIn 0.3s ease-out;
       width: 100%;
       min-height: 100%;
     }
 
-    .split-left {
-      flex: 1;
-      padding: 60px;
+    .public-view.active {
       display: flex;
+    }
+
+    /* Landing Hero View */
+    .landing-view {
       flex-direction: column;
       justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 60px 20px;
       background: linear-gradient(135deg, rgba(20, 20, 30, 0.8), rgba(10, 10, 15, 0.9)), url('https://images.unsplash.com/photo-1639762681485-074b7f4ec651?q=80&w=2670&auto=format&fit=crop') center/cover;
     }
 
-    body.light-theme .split-left {
+    body.light-theme .landing-view {
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.95)), url('https://images.unsplash.com/photo-1639762681485-074b7f4ec651?q=80&w=2670&auto=format&fit=crop') center/cover;
-      color: #0f172a;
     }
 
-    .split-right {
-      width: 500px;
-      padding: 60px 40px;
-      background: var(--bg-dark);
-      border-left: 1px solid var(--card-border);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 32px;
-    }
-
-    .hero-title {
-      font-size: 4rem;
-      font-weight: 700;
+    .landing-hero-title {
+      font-size: 5rem;
+      font-weight: 800;
       line-height: 1.1;
       margin-bottom: 24px;
+      max-width: 900px;
     }
 
-    .hero-title span {
-      background: linear-gradient(90deg, #a78bfa, #f472b6);
+    .landing-hero-title span {
+      background: linear-gradient(90deg, #a78bfa, #f472b6, #3b82f6);
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-size: 200% auto;
+      animation: gradientFlow 5s linear infinite;
     }
 
-    .hero-subtitle {
+    @keyframes gradientFlow {
+      0% {
+        background-position: 0% center;
+      }
+
+      100% {
+        background-position: 200% center;
+      }
+    }
+
+    .landing-hero-subtitle {
       font-size: 1.25rem;
       color: var(--muted);
-      max-width: 80%;
+      max-width: 700px;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .landing-features {
+      display: flex;
+      gap: 32px;
+      margin-top: 60px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 24px;
+      border-radius: 16px;
+      width: 280px;
+      backdrop-filter: blur(10px);
+      text-align: left;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    body.light-theme .feature-card {
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    body.light-theme .feature-card:hover {
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-card i {
+      font-size: 2rem;
+      color: #a78bfa;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      color: var(--muted);
+      font-size: 0.95rem;
       line-height: 1.6;
     }
 
-    .verify-box {
+    /* Verify & Login Centered Views */
+    .centered-view {
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .compact-verify-box {
       background: rgba(255, 255, 255, 0.03);
-      border: 1px dashed var(--muted);
+      border: 1px solid var(--card-border);
       border-radius: 20px;
-      padding: 32px;
+      padding: 40px;
       text-align: center;
-      margin-top: 40px;
       backdrop-filter: blur(10px);
+      max-width: 600px;
+      width: 100%;
+      box-shadow: var(--glass-shadow);
     }
 
-    body.light-theme .verify-box {
-      background: rgba(255, 255, 255, 0.6);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-      border-color: #cbd5e1;
+    body.light-theme .compact-verify-box {
+      background: rgba(255, 255, 255, 0.8);
+      border-color: rgba(0, 0, 0, 0.08);
     }
 
-    .verify-box h3 {
-      margin-bottom: 16px;
+    .compact-login-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      max-width: 450px;
+      width: 100%;
+      box-shadow: var(--glass-shadow);
+    }
+
+    body.light-theme .compact-login-box {
+      background: rgba(255, 255, 255, 0.8);
+      border-color: rgba(0, 0, 0, 0.08);
     }
 
     .verify-result {
@@ -953,32 +1201,29 @@
 
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
-      .split-layout {
+      .public-header {
+        padding: 16px 20px;
         flex-direction: column;
+        gap: 16px;
       }
 
-      .split-left {
-        padding: 40px 24px;
+      .public-nav {
+        flex-wrap: wrap;
+        justify-content: center;
       }
 
-      .split-right {
-        width: 100%;
-        padding: 40px 24px;
-        border-left: none;
-        border-top: 1px solid var(--card-border);
+      .landing-hero-title {
+        font-size: 3rem;
       }
 
-      .hero-title {
-        font-size: 2.5rem;
-      }
-
-      .hero-subtitle {
+      .landing-hero-subtitle {
         font-size: 1rem;
         max-width: 100%;
       }
 
-      .verify-box {
-        padding: 20px;
+      .compact-verify-box,
+      .compact-login-box {
+        padding: 24px;
       }
 
       .app-container {
@@ -1132,30 +1377,78 @@
 
   <!-- Public Welcome & Login Screen -->
   <div id="publicScreen" class="public-screen">
-    <div class="split-layout">
-      <div class="split-left">
-        <h1 class="hero-title">Experience the Future of <span
-            style="background: linear-gradient(90deg, #a78bfa, #f472b6); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Secure
-            Storage</span></h1>
-        <p class="hero-subtitle">Decentralized, encrypted, and highly resilient. Store, share, and monetize your
-          valuable data on the blockchain.</p>
+    <header class="public-header">
+      <div class="brand" style="font-size:1.8rem;">DriveX</div>
+      <nav class="public-nav">
+        <button class="public-nav-item active" id="btnNavHome">Home</button>
+        <button class="public-nav-item" id="btnNavVerify">Verify</button>
+        <button class="public-nav-item" id="btnNavLogin">Login</button>
+      </nav>
+      <div style="display:flex; gap:16px;">
+        <button id="publicThemeToggleBtn" class="btn btn-ghost" title="Toggle Light/Dark Mode"
+          style="border-radius:50%; padding: 8px; width:40px; height:40px; display:flex; justify-content:center; align-items:center;">
+          <i id="publicThemeIcon" class="fa-solid fa-sun"></i>
+        </button>
+      </div>
+    </header>
 
-        <div class="verify-box">
-          <h3>Public Verification System</h3>
-          <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Drag and drop any file to verify its
-            authenticity on the blockchain anonymously.</p>
-          <input type="file" id="publicVerifyInput" style="display:none;" />
-          <button class="btn btn-primary" onclick="document.getElementById('publicVerifyInput').click()"><i
-              class="fa-solid fa-upload"></i> Select File to Verify</button>
-          <div id="verifyStatus" style="margin-top:12px; font-size:0.9rem;"></div>
-          <div id="verifyResult" class="verify-result"></div>
+    <div class="public-view-container">
+      <!-- Landing View -->
+      <div id="landingView" class="public-view landing-view active">
+        <h1 class="landing-hero-title">Experience the Future of <br /><span>Secure Storage</span></h1>
+        <p class="landing-hero-subtitle">Decentralized, encrypted, and highly resilient. Store, share, and monetize your
+          valuable data on the blockchain with zero compromises.</p>
+        <button id="ctaGetStarted" class="btn btn-primary"
+          style="padding: 16px 32px; font-size: 1.2rem; border-radius: 30px;">
+          Get Started Now <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i>
+        </button>
+
+        <div class="landing-features">
+          <div class="feature-card">
+            <i class="fa-solid fa-link"></i>
+            <h3>Blockchain Secured</h3>
+            <p>Every file is cryptographically hashed and verified on the blockchain, ensuring absolute immutability and
+              provenance.</p>
+          </div>
+          <div class="feature-card">
+            <i class="fa-solid fa-shield-halved"></i>
+            <h3>True Ownership</h3>
+            <p>Self-custodial storage where you hold the keys. No corporate oversight, no unexpected deletions, purely
+              your data.</p>
+          </div>
+          <div class="feature-card">
+            <i class="fa-solid fa-store"></i>
+            <h3>Built-in Marketplace</h3>
+            <p>Monetize your premium digital assets seamlessly by selling encrypted access directly through smart
+              contracts.</p>
+          </div>
         </div>
       </div>
-      <div class="split-right">
-        <div class="brand" style="justify-content:center; font-size:3rem; margin-bottom:20px;">
-          DriveX
+
+      <!-- Verify View -->
+      <div id="verifyView" class="public-view centered-view">
+        <div class="compact-verify-box">
+          <h2 style="margin-bottom: 24px;"><i class="fa-solid fa-file-shield" style="color:#a78bfa;"></i> Public
+            Verification</h2>
+          <p style="color:var(--muted); font-size:1rem; margin-bottom:24px;">Drag and drop any file to independently
+            verify its authenticity on the blockchain anonymously.</p>
+          <div
+            style="border: 2px dashed var(--card-border); padding: 40px; border-radius: 16px; background: rgba(0,0,0,0.2);">
+            <input type="file" id="publicVerifyInput" style="display:none;" />
+            <button class="btn btn-primary" onclick="document.getElementById('publicVerifyInput').click()"
+              style="padding: 12px 24px; font-size: 1.1rem;"><i class="fa-solid fa-file-arrow-up"></i> Select
+              File</button>
+            <div id="verifyStatus" style="margin-top:20px; font-weight: 500;"></div>
+            <div id="verifyResult" class="verify-result" style="width: 100%; box-sizing: border-box; margin-top: 16px;">
+            </div>
+          </div>
         </div>
-        <div class="card" style="text-align:center; padding: 40px 24px; box-shadow:none;">
+      </div>
+
+      <!-- Login View -->
+      <div id="loginView" class="public-view centered-view">
+        <div class="compact-login-box">
+          <div class="brand" style="justify-content:center; font-size:2.5rem; margin-bottom:24px;">DriveX</div>
           <h2 style="margin-bottom: 12px;">Welcome Back</h2>
           <p style="color:var(--muted); margin-bottom: 32px;">Connect your Web3 wallet to access your secure storage
             vault and marketplace.</p>
@@ -1167,7 +1460,6 @@
             <div id="loginLoader" class="loader"
               style="display:none; width:20px; height:20px; border-width:2px; margin-left:8px;"></div>
           </button>
-          <!-- Mobile hint: shown on small screens only (CSS media query) -->
           <p id="mobileHint"
             style="display:none; margin-top:16px; font-size:0.85rem; color:var(--muted); text-align:center;">
             📱 On mobile, tapping the button will open this site inside the
@@ -1193,17 +1485,14 @@
         </button>
 
         <!-- Storage Capacity Indicator -->
-        <div
-          style="margin-top: 24px; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--card-border);">
+        <div class="storage-indicator">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;"><i
                 class="fa-solid fa-hard-drive" style="margin-right: 6px;"></i>Storage</span>
             <span id="storageUsedPct" style="font-size: 0.8rem; color: var(--text); font-weight: 500;">0%</span>
           </div>
-          <div
-            style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
-            <div id="storageProgressBar"
-              style="width: 0%; height: 100%; background: linear-gradient(90deg, #a78bfa, #f472b6); border-radius: 3px; transition: width 0.5s ease-out;">
+          <div class="storage-progress-bg">
+            <div id="storageProgressBar" class="storage-progress-fill">
             </div>
           </div>
           <div style="font-size: 0.75rem; color: var(--muted); text-align: right;">
@@ -1281,23 +1570,14 @@
             style="border-radius:50%; padding: 8px; width:40px; height:40px; display:flex; justify-content:center; align-items:center;">
             <i id="themeIcon" class="fa-solid fa-sun"></i>
           </button>
-          <div id="accountStatusWrapper" style="position:relative;">
-            <div id="accountStatus" class="btn btn-ghost"
-              style="border-radius:20px; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px;"
-              title="Click to disconnect">
+          <div id="accountStatus" class="btn btn-ghost" id="signoutBtn" title="Disconnect wallet">
+            <span class="wallet-default">
               <i class="fa-solid fa-wallet" style="font-size:0.8rem;"></i>
               <span id="accountStatusText">0x...</span>
-              <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; opacity:0.6;"></i>
-            </div>
-            <div id="accountDropdown"
-              style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:var(--modal-bg, #1a1a2e); border:1px solid var(--card-border); border-radius:12px; min-width:180px; box-shadow:0 8px 32px rgba(0,0,0,0.4); z-index:1000; overflow:hidden;">
-              <div
-                style="padding:12px 16px; border-bottom:1px solid var(--card-border); font-size:0.8rem; color:var(--muted);">
-                <i class="fa-solid fa-circle-dot" style="color:#34d399; margin-right:6px;"></i>Connected</div>
-              <button id="signoutBtn" class="btn btn-ghost"
-                style="width:100%; text-align:left; padding:12px 16px; border-radius:0; color:#f87171; font-size:0.9rem;"><i
-                  class="fa-solid fa-right-from-bracket" style="margin-right:8px;"></i>Disconnect</button>
-            </div>
+            </span>
+            <span class="wallet-disconnect">
+              <i class="fa-solid fa-right-from-bracket"></i> Disconnect
+            </span>
           </div>
         </div>
       </header>
@@ -1664,6 +1944,8 @@
     <script type="module" src="https://unpkg.com/@reown/appkit/dist/appkit.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script src="https://unpkg.com/@metamask/sdk@0.34.0/dist/browser/umd/metamask-sdk.js"></script>
+    <!-- PDF.js for web viewer and thumbnails -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <!-- Global Loading / Toast -->
     <div id="downloadToast"
       style="display:none; position:fixed; bottom:20px; right:20px; background:var(--bg-dark); border:1px solid var(--card-border); padding:16px 24px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); z-index:9999; align-items:center; gap:12px; color:var(--text);">

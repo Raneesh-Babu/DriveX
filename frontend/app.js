@@ -1,8 +1,31 @@
 /* app.js */
+// Configure PDF.js worker
+if (window.pdfjsLib) {
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+}
+
 // Helpers
 function g(id) { return document.getElementById(id); }
 function showModal(id) { g(id).classList.add('active'); }
 function closeModal(id) { g(id).classList.remove('active'); }
+
+// Public pages navigation
+function switchPublicView(viewId) {
+  document.querySelectorAll('.public-nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.public-view').forEach(el => el.classList.remove('active'));
+
+  const mapping = {
+    'landingView': 'btnNavHome',
+    'verifyView': 'btnNavVerify',
+    'loginView': 'btnNavLogin'
+  };
+
+  const targetBtn = document.getElementById(mapping[viewId]);
+  if (targetBtn) targetBtn.classList.add('active');
+
+  const targetView = document.getElementById(viewId);
+  if (targetView) targetView.classList.add('active');
+}
 
 // State
 let currentAccount = null;
@@ -85,6 +108,44 @@ async function init() {
       if (!e.target.files.length) return;
       await runPublicVerification(e.target.files[0]);
     });
+
+    // Public Pages Navigation Setup
+    const btnNavHome = document.getElementById('btnNavHome');
+    if (btnNavHome) {
+      btnNavHome.addEventListener('click', () => switchPublicView('landingView'));
+      document.getElementById('btnNavVerify').addEventListener('click', () => switchPublicView('verifyView'));
+      document.getElementById('btnNavLogin').addEventListener('click', () => switchPublicView('loginView'));
+      document.getElementById('ctaGetStarted').addEventListener('click', () => switchPublicView('loginView'));
+
+      // Public Theme Toggle
+      const publicThemeToggleBtn = document.getElementById('publicThemeToggleBtn');
+      if (publicThemeToggleBtn) {
+        publicThemeToggleBtn.addEventListener('click', () => {
+          document.body.classList.toggle('light-theme');
+          const isLight = document.body.classList.contains('light-theme');
+          const icon = document.getElementById('publicThemeIcon');
+          if (isLight) {
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+          } else {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+          }
+
+          // Keep internal dashboard theme in sync if it exists
+          const innerIcon = document.getElementById('themeIcon');
+          if (innerIcon) {
+            if (isLight) {
+              innerIcon.classList.remove('fa-sun');
+              innerIcon.classList.add('fa-moon');
+            } else {
+              innerIcon.classList.remove('fa-moon');
+              innerIcon.classList.add('fa-sun');
+            }
+          }
+        });
+      }
+    }
 
     // Initialize Reown AppKit (Web3Modal) for mobile Chrome
     if (typeof window.AppKit !== 'undefined' && window.AppKit.createAppKit) {
@@ -270,19 +331,8 @@ g('loginConnectBtn').addEventListener('click', async () => {
   }
 });
 
-// Wallet dropdown toggle
-g('accountStatus').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const dropdown = g('accountDropdown');
-  dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-});
-
-document.addEventListener('click', () => {
-  const dropdown = g('accountDropdown');
-  if (dropdown) dropdown.style.display = 'none';
-});
-
-g('signoutBtn').addEventListener('click', async () => {
+// Wallet button click = disconnect
+g('accountStatus').addEventListener('click', async () => {
   currentAccount = null;
   provider = null;
   signer = null;
@@ -292,7 +342,6 @@ g('signoutBtn').addEventListener('click', async () => {
   currentSearchQuery = '';
   g('categoryFilter').value = 'All';
   currentCategoryFilter = 'All';
-  // Keep layout and sort across logouts
 
   if (appKitModal && appKitModal.getState().connected) {
     try { await appKitModal.disconnect(); } catch (_) { }
@@ -300,6 +349,7 @@ g('signoutBtn').addEventListener('click', async () => {
 
   g('publicScreen').classList.remove('hidden');
   g('appLayout').style.display = 'none';
+  if (typeof switchPublicView === 'function') switchPublicView('landingView');
 });
 
 // UI Bindings mappings
@@ -734,7 +784,31 @@ function renderArchitecture(allFiles) {
       img.onerror = () => { thumb.innerHTML = `<i class="fa-solid fa-file"></i><span class="file-ext">${ext}</span>`; };
       thumb.appendChild(img);
     } else if (f.mime && f.mime.includes('pdf')) {
-      thumb.innerHTML = `<i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i><span class="file-ext">PDF</span>`;
+      const canvasId = 'pdf-thumb-' + f.cid;
+      thumb.innerHTML = `<canvas id="${canvasId}" style="width:100%; height:100%; object-fit:contain; border-radius:8px 8px 0 0;"></canvas>`;
+
+      setTimeout(async () => {
+        try {
+          const url = `https://gateway.pinata.cloud/ipfs/${f.cid}`;
+          const loadingTask = pdfjsLib.getDocument(url);
+          const pdf = await loadingTask.promise;
+          const page = await pdf.getPage(1);
+
+          const canvas = document.getElementById(canvasId);
+          if (canvas) {
+            const context = canvas.getContext('2d');
+            const viewport = page.getViewport({ scale: 0.5 });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+          }
+        } catch (e) {
+          console.error('Error generating PDF thumbnail:', e);
+          const c = document.getElementById(canvasId);
+          if (c && c.parentElement) c.parentElement.innerHTML = `<i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i><span class="file-ext">PDF</span>`;
+        }
+      }, 0);
     } else {
       thumb.innerHTML = `<i class="fa-solid fa-file"></i><span class="file-ext">${ext}</span>`;
     }
@@ -754,7 +828,15 @@ function renderArchitecture(allFiles) {
     `;
     thumb.appendChild(dateOverlay);
 
-    thumb.onclick = (e) => { e.stopPropagation(); openPreview(f.cid, f.name, f.mime); };
+    thumb.onclick = (e) => {
+      e.stopPropagation();
+      const isOwner = f.owner && currentAccount && f.owner.toLowerCase() === currentAccount.toLowerCase();
+      if (currentView === 'marketfiles' && !isOwner) {
+        customAlert("You must buy access to this file before you can preview it.");
+      } else {
+        openPreview(f.cid, f.name, f.mime);
+      }
+    };
 
     const info = document.createElement('div');
     info.className = 'file-info';
@@ -1453,7 +1535,57 @@ function openPreview(cid, name, mime) {
     media.style.outline = 'none';
     media.style.transition = 'transform 0.15s ease';
     viewer.appendChild(media);
-  } else if (isPdf || isText) {
+  } else if (isPdf) {
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.overflow = 'auto'; // ensure it can scroll
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.alignItems = 'center';
+    container.style.backgroundColor = '#f1f5f9';
+    container.style.padding = '20px';
+    viewer.appendChild(container);
+
+    const renderPdf = async () => {
+      try {
+        const loadingTask = pdfjsLib.getDocument(url);
+        const pdf = await loadingTask.promise;
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+
+          // Render at high resolution for clarity
+          const baseScale = 2.0;
+          const viewport = page.getViewport({ scale: baseScale });
+
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          canvas.style.marginBottom = '20px';
+          canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+
+          // Store base dimensions for zooming
+          canvas.dataset.baseWidth = viewport.width;
+          canvas.dataset.baseHeight = viewport.height;
+
+          // Initial zoom display size
+          const currentScale = typeof currentZoom !== 'undefined' ? currentZoom : 1;
+          const displayScale = currentScale / baseScale;
+          canvas.style.width = (viewport.width * displayScale) + 'px';
+          canvas.style.height = (viewport.height * displayScale) + 'px';
+          canvas.style.transition = 'width 0.15s ease, height 0.15s ease';
+
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+          container.appendChild(canvas);
+        }
+      } catch (err) {
+        container.innerHTML = `<p style="color:red; padding:20px;">Error rendering PDF: ${err.message}</p>`;
+      }
+    };
+    renderPdf();
+
+  } else if (isText) {
     const iframe = document.createElement('iframe');
     iframe.src = url;
     iframe.style.width = '100%';
@@ -1501,6 +1633,17 @@ function applyZoom() {
       child.style.transform = `scale(${currentZoom})`;
       child.style.transformOrigin = 'center center';
       child.style.transition = 'transform 0.15s ease';
+    } else if (child.tagName === 'DIV') {
+      // PDF Container
+      const canvases = child.querySelectorAll('canvas');
+      canvases.forEach(canvas => {
+        if (canvas.dataset.baseWidth && canvas.dataset.baseHeight) {
+          const baseScale = 2.0;
+          const displayScale = currentZoom / baseScale;
+          canvas.style.width = (canvas.dataset.baseWidth * displayScale) + 'px';
+          canvas.style.height = (canvas.dataset.baseHeight * displayScale) + 'px';
+        }
+      });
     }
   });
 }
