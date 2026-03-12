@@ -1436,7 +1436,7 @@
       <button id="ctxSetPrice"><i class="fa-solid fa-tag"></i> <span id="ctxSetPriceText">Sell on
           Marketplace</span></button>
       <hr />
-      <button id="ctxTrash" style="color:#f59e0b;"><i class="fa-solid fa-trash-can"></i> Move to Bin</button>
+      <button id="ctxTrash" style="color:#f59e0b; display: none !important;"><i class="fa-solid fa-trash-can"></i> Move to Bin</button>
       <button id="ctxDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete File</button>
     </div>
     <div id="ctxMarketGroup" style="display:none; flex-direction:column; width:100%;">
@@ -1605,7 +1605,7 @@
           <div class="nav-item" data-view="starred">
             <i class="fa-solid fa-star"></i> Starred
           </div>
-          <div class="nav-item" data-view="bin">
+          <div class="nav-item" data-view="bin" style="display: none !important;">
             <i class="fa-solid fa-trash-can"></i> Bin
           </div>
           <div class="nav-item" data-view="sharedfiles">
