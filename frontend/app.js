@@ -2665,6 +2665,24 @@ function openPreview(cid, name, mime) {
     media.style.transition = 'transform 0.15s ease';
     viewer.appendChild(media);
 
+    let audioPlaceholder;
+    if (isAudio) {
+      audioPlaceholder = document.createElement('div');
+      audioPlaceholder.innerHTML = '<i class="fa-solid fa-music"></i>';
+      audioPlaceholder.style.fontSize = '6rem';
+      audioPlaceholder.style.color = 'var(--primary)';
+      audioPlaceholder.style.cursor = 'pointer';
+      audioPlaceholder.style.display = 'flex';
+      audioPlaceholder.style.alignItems = 'center';
+      audioPlaceholder.style.justifyContent = 'center';
+      audioPlaceholder.style.width = '100%';
+      audioPlaceholder.style.height = '100%';
+      audioPlaceholder.style.transition = 'transform 0.2s';
+      audioPlaceholder.onmouseover = () => audioPlaceholder.style.transform = 'scale(1.1)';
+      audioPlaceholder.onmouseout = () => audioPlaceholder.style.transform = 'scale(1)';
+      viewer.appendChild(audioPlaceholder);
+    }
+
     // Wire up Custom Controls
     const controls = g('customMediaControls');
     controls.style.display = 'flex';
@@ -2696,7 +2714,12 @@ function openPreview(cid, name, mime) {
       }
     };
     playPauseBtn.onclick = togglePlay;
-    media.onclick = togglePlay; // Click video to play/pause
+    
+    if (isVideo) {
+      media.onclick = togglePlay; // Click video to play/pause
+    } else if (isAudio && audioPlaceholder) {
+      audioPlaceholder.onclick = togglePlay; // Click music icon to play/pause
+    }
 
     // Metadata loaded (duration)
     media.onloadedmetadata = () => {
