@@ -7,6 +7,8 @@ async function main() {
   const drive = await Drive.deploy();
   await drive.deployed();
 
+  const fs = require('fs');
+  fs.writeFileSync('deployed_address.txt', drive.address);
   console.log("Drive deployed to:", drive.address);
 }
 

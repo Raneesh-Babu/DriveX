@@ -105,6 +105,42 @@
       "artifacts": [
         "Drive"
       ]
+    },
+    "D:\\blockchain\\working version\\testing\\V12.0f\\drive-app\\contracts\\Drive.sol": {
+      "lastModificationDate": 1773337262301,
+      "contentHash": "e8df5e57e78f585f51ada8d24042864e",
+      "sourceName": "contracts/Drive.sol",
+      "solcConfig": {
+        "version": "0.8.17",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.17"
+      ],
+      "artifacts": [
+        "Drive"
+      ]
     }
   }
 }

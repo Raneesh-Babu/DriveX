@@ -73,6 +73,8 @@
       background: var(--sidebar-bg, rgba(10, 10, 15, 0.4));
       backdrop-filter: blur(12px);
       z-index: 10;
+      height: 100vh;
+      overflow-y: auto;
     }
 
     .main-content {
@@ -459,6 +461,80 @@
       border-top: 1px solid rgba(255, 255, 255, 0.05);
       padding-top: 8px;
       margin-top: 4px;
+    }
+
+    .file-checkbox {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .card:hover .file-checkbox, .file-checkbox:checked, .card.selected .file-checkbox {
+      opacity: 1;
+    }
+
+    .card.selected {
+      border-color: var(--accent);
+      background: rgba(167, 139, 250, 0.1);
+    }
+
+    /* Multi-select Action Bar */
+    .multi-select-bar {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--accent);
+      padding: 12px 24px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 40px rgba(109, 40, 217, 0.5);
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .multi-select-bar.active {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    body.light-theme .multi-select-bar {
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+      border-color: #3b82f6;
+    }
+
+    .multi-select-count {
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .multi-select-actions {
+      display: flex;
+      gap: 8px;
+      border-left: 1px solid var(--card-border);
+      padding-left: 16px;
+    }
+    
+    .multi-select-actions button {
+      padding: 6px 14px;
+      font-size: 0.85rem;
     }
 
     .badge {
@@ -1347,6 +1423,7 @@
   <!-- Custom Right Click Context Menu -->
   <div id="contextMenu" class="context-menu">
     <button id="ctxDownload"><i class="fa-solid fa-download"></i> Download</button>
+    <button id="ctxToggleStar"><i class="fa-regular fa-star" id="ctxStarIcon"></i> <span id="ctxStarText">Star</span></button>
     <button id="ctxVerify"><i class="fa-solid fa-file-shield"></i> Verify Integrity</button>
     <button id="ctxHistory"><i class="fa-solid fa-clock-rotate-left"></i> View History</button>
     <div id="ctxOwnerOnlyGroup" style="display:none; flex-direction:column; gap:4px; width:100%;">
@@ -1359,17 +1436,20 @@
       <button id="ctxSetPrice"><i class="fa-solid fa-tag"></i> <span id="ctxSetPriceText">Sell on
           Marketplace</span></button>
       <hr />
+      <button id="ctxTrash" style="color:#f59e0b;"><i class="fa-solid fa-trash-can"></i> Move to Bin</button>
       <button id="ctxDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete File</button>
     </div>
     <div id="ctxMarketGroup" style="display:none; flex-direction:column; width:100%;">
       <hr />
       <button id="ctxBuy" style="color:#34d399;"><i class="fa-solid fa-cart-shopping"></i> Buy Access</button>
+      <button id="ctxRequestAccess" style="color:#a78bfa;"><i class="fa-solid fa-hand-point-up"></i> Request Access</button>
     </div>
   </div>
 
   <!-- Folder Context Menu -->
   <div id="folderContextMenu" class="context-menu">
     <button id="ctxFolderOpen"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
+    <button id="ctxFolderShare"><i class="fa-solid fa-share-nodes"></i> Share Folder</button>
     <button id="ctxFolderRename"><i class="fa-solid fa-pen-to-square"></i> Rename Folder</button>
     <hr />
     <button id="ctxFolderDelete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i> Delete Folder</button>
@@ -1474,60 +1554,85 @@
 
   <!-- Main App Layout (Hidden until logged in) -->
   <div id="appLayout" class="app-container" style="display:none;">
-    <aside class="sidebar">
-      <div class="brand" style="margin-bottom: 20px;">
-        DriveX
+    <aside class="sidebar" style="padding: 0; gap: 0; overflow: hidden;">
+      <!-- Fixed Brand Header -->
+      <div style="padding: 24px 24px 14px; background: var(--sidebar-bg, rgba(10,10,15,0.98)); backdrop-filter: blur(12px); border-bottom: 1px solid var(--card-border); flex-shrink: 0;">
+        <div class="brand">DriveX</div>
       </div>
-      <div style="margin-bottom: 20px;">
-        <input type="file" id="fileInput" style="display:none" />
-        <button id="uploadTriggerBtn" class="btn btn-primary" style="width:100%; padding: 14px;">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
-        </button>
 
-        <!-- Storage Capacity Indicator -->
-        <div class="storage-indicator">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;"><i
-                class="fa-solid fa-hard-drive" style="margin-right: 6px;"></i>Storage</span>
-            <span id="storageUsedPct" style="font-size: 0.8rem; color: var(--text); font-weight: 500;">0%</span>
-          </div>
-          <div class="storage-progress-bg">
-            <div id="storageProgressBar" class="storage-progress-fill">
+      <!-- Scrollable Nav Body -->
+      <div style="flex: 1; overflow-y: auto; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="margin-bottom: 0px;">
+          <input type="file" id="fileInput" style="display:none" multiple />
+          <button id="uploadTriggerBtn" class="btn btn-primary" style="width:100%; padding: 14px;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload File(s)
+          </button>
+
+          <!-- Storage Capacity Indicator -->
+          <div class="storage-indicator">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;"><i
+                  class="fa-solid fa-hard-drive" style="margin-right: 6px;"></i>Storage</span>
+              <span id="storageUsedPct" style="font-size: 0.8rem; color: var(--text); font-weight: 500;">0%</span>
             </div>
+            <div class="storage-progress-bg">
+              <div id="storageProgressBar" class="storage-progress-fill">
+              </div>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--muted); text-align: right;">
+              <span id="storageUsedText">0 B</span> / <span id="storageLimitText">250 MB</span>
+            </div>
+            <button id="upgradePlanBtn" class="btn btn-primary" style="width:100%; margin-top:10px; padding:10px; font-size:0.85rem;">
+              <i class="fa-solid fa-arrow-up-right-dots"></i> Upgrade Plan
+            </button>
           </div>
-          <div style="font-size: 0.75rem; color: var(--muted); text-align: right;">
-            <span id="storageUsedText">0 B</span> / 1 GB
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Category
+            Filter</label>
+          <select id="categoryFilter">
+            <option value="All">All Categories</option>
+          </select>
+        </div>
+
+        <div class="nav-menu">
+          <label
+            style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top:12px;">Locations</label>
+          <div class="nav-item active" data-view="myfiles">
+            <i class="fa-solid fa-user-lock"></i> My Files
+          </div>
+          <div class="nav-item" data-view="starred">
+            <i class="fa-solid fa-star"></i> Starred
+          </div>
+          <div class="nav-item" data-view="bin">
+            <i class="fa-solid fa-trash-can"></i> Bin
+          </div>
+          <div class="nav-item" data-view="sharedfiles">
+            <i class="fa-solid fa-users"></i> Shared with me
+          </div>
+          <div class="nav-item" data-view="marketfiles">
+            <i class="fa-solid fa-store"></i> Marketplace
+          </div>
+          <div class="nav-item" data-view="activity">
+            <i class="fa-solid fa-clipboard-list"></i> Activity Log
+          </div>
+          <div class="nav-item" id="navAdminPanel" data-view="adminpanel" style="display:none; color: #f43f5e;">
+            <i class="fa-solid fa-screwdriver-wrench"></i> Admin Panel
+          </div>
+          <label
+            style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top:12px;">Tools</label>
+          <div class="nav-item" id="navPublicVerify">
+            <i class="fa-solid fa-file-shield"></i> Public Verification
+          </div>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 12px; border-top: 1px solid var(--card-border);">
+          <div class="nav-item" data-view="settings" id="navSettings">
+            <i class="fa-solid fa-gear"></i> Settings
           </div>
         </div>
       </div>
-
-      <div class="form-group" style="margin-bottom: 12px;">
-        <label style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Category
-          Filter</label>
-        <select id="categoryFilter">
-          <option value="All">All Categories</option>
-        </select>
-      </div>
-
-      <div class="nav-menu">
-        <label
-          style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top:12px;">Locations</label>
-        <div class="nav-item active" data-view="myfiles">
-          <i class="fa-solid fa-user-lock"></i> My Files
-        </div>
-        <div class="nav-item" data-view="sharedfiles">
-          <i class="fa-solid fa-users"></i> Shared with me
-        </div>
-        <div class="nav-item" data-view="marketfiles">
-          <i class="fa-solid fa-store"></i> Marketplace
-        </div>
-        <label
-          style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top:12px;">Tools</label>
-        <div class="nav-item" id="navPublicVerify">
-          <i class="fa-solid fa-file-shield"></i> Public Verification
-        </div>
-      </div>
-      <div style="margin-top: auto;"></div>
     </aside>
 
     <div class="main-content">
@@ -1570,6 +1675,16 @@
             style="border-radius:50%; padding: 8px; width:40px; height:40px; display:flex; justify-content:center; align-items:center;">
             <i id="themeIcon" class="fa-solid fa-sun"></i>
           </button>
+          <div style="position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;" id="btnNotifications" title="Notifications" class="btn btn-ghost">
+            <i class="fa-solid fa-bell" style="font-size: 1.1rem;"></i>
+            <span id="notificationsBadge" style="display:none; position: absolute; top: 4px; right: 4px; background: #34d399; color: white; font-size: 0.65rem; padding: 2px 5px; border-radius: 10px; font-weight: bold; line-height: 1;">0</span>
+          </div>
+
+          <div style="position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;" id="btnRequests" title="View Requests" class="btn btn-ghost">
+            <i class="fa-solid fa-hand-point-up" style="font-size: 1.1rem;"></i>
+            <span id="requestsBadge" style="display:none; position: absolute; top: 4px; right: 4px; background: #ef4444; color: white; font-size: 0.65rem; padding: 2px 5px; border-radius: 10px; font-weight: bold; line-height: 1;">0</span>
+          </div>
+
           <div id="accountStatus" class="btn btn-ghost" id="signoutBtn" title="Disconnect wallet">
             <span class="wallet-default">
               <i class="fa-solid fa-wallet" style="font-size:0.8rem;"></i>
@@ -1626,7 +1741,121 @@
             </div>
           </div>
 
+          <!-- Activity Log View -->
+          <div id="activityLogSection" style="display:none; max-width:800px; margin: 0 auto; padding-top:20px;">
+            <div style="background: var(--card-bg); border: 1px solid var(--card-border); padding:32px; border-radius:16px;">
+              <h2 style="margin-bottom:12px;"><i class="fa-solid fa-clipboard-list" style="color:#a78bfa;"></i> Activity Log</h2>
+              <p style="color:var(--muted); margin-bottom:24px;">Your complete historical actions across DriveX.</p>
+              
+              <div id="activityLogLoader" class="loader" style="display:none; width:32px; height:32px; border-width:3px; margin: 40px auto; border-top-color:#a78bfa;"></div>
+              
+              <div id="activityLogList" class="history-list" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Logs populated here -->
+              </div>
+              
+            </div>
+          </div>
+
+          <!-- Admin Panel View -->
+          <div id="adminPanelSection" style="display:none; max-width:800px; margin: 0 auto; padding-top:20px;">
+            <div style="background: var(--card-bg); border: 1px solid var(--card-border); padding:32px; border-radius:16px;">
+              <h2 style="margin-bottom:12px; color: #f43f5e;"><i class="fa-solid fa-screwdriver-wrench"></i> Admin Control Panel</h2>
+              <p style="color:var(--muted); margin-bottom:24px;">Manage storage tier pricing and withdraw contract funds.</p>
+
+              <div style="background:rgba(255,255,255,0.03); padding:20px; border-radius:12px; border:1px solid var(--card-border); margin-bottom:24px;">
+                <h3 style="margin-bottom:16px;"><i class="fa-solid fa-tags" style="color:#a78bfa;"></i> Update Tier Prices</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div class="form-group">
+                    <label>Premium Price (ETH/month)</label>
+                    <input type="number" id="adminPremiumPrice" step="0.000001" placeholder="e.g. 0.00016" />
+                  </div>
+                  <div class="form-group">
+                    <label>Pro Price (ETH/month)</label>
+                    <input type="number" id="adminProPrice" step="0.000001" placeholder="e.g. 0.00023" />
+                  </div>
+                  <div class="form-group">
+                    <label>Pro+ Price (ETH/GB)</label>
+                    <input type="number" id="adminProPlusPrice" step="0.000001" placeholder="e.g. 0.000091" />
+                  </div>
+                </div>
+                <button id="btnAdminUpdatePrices" class="btn btn-primary" style="margin-top:16px; padding:12px; width:100%; justify-content:center;">
+                  Update Prices <div id="adminPriceLoader" class="loader" style="display:none; width:16px; height:16px; margin-left:8px; border-width:2px;"></div>
+                </button>
+              </div>
+
+              <div style="background:rgba(255,255,255,0.03); padding:20px; border-radius:12px; border:1px solid var(--card-border);">
+                <h3 style="margin-bottom:12px;"><i class="fa-brands fa-ethereum" style="color:#34d399;"></i> Contract Balance</h3>
+                <p style="font-size:1.5rem; font-weight:bold; color:var(--text); margin-bottom:16px;" id="adminContractBalance">Loading...</p>
+                <button id="btnAdminWithdraw" class="btn btn-danger" style="padding:12px; width:100%; justify-content:center;">
+                  <i class="fa-solid fa-money-bill-transfer"></i> Withdraw Funds
+                  <div id="adminWithdrawLoader" class="loader" style="display:none; width:16px; height:16px; margin-left:8px; border-width:2px;"></div>
+                </button>
+              </div>
+              <div id="adminStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center; margin-top:16px;"></div>
+            </div>
+          </div>
+
+          <!-- Settings View -->
+          <div id="settingsSection" style="display:none; max-width:700px; margin: 0 auto; padding-top:20px;">
+            <div style="background: var(--card-bg); border: 1px solid var(--card-border); padding:32px; border-radius:16px;">
+              <h2 style="margin-bottom:24px;"><i class="fa-solid fa-gear" style="color:#a78bfa;"></i> Settings</h2>
+
+              <!-- Profile Card -->
+              <div style="background:rgba(255,255,255,0.03); padding:20px; border-radius:12px; border:1px solid var(--card-border); margin-bottom:20px;">
+                <h3 style="margin-bottom:16px; color: var(--accent);"><i class="fa-solid fa-circle-user"></i> Account</h3>
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                  <div style="background: rgba(99,102,241,0.12); border-radius:50%; width:60px; height:60px; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:#a78bfa; flex-shrink:0;">
+                    <i class="fa-solid fa-user"></i>
+                  </div>
+                  <div>
+                    <div style="font-size:1.2rem; font-weight:bold;" id="settingsUsername">@username</div>
+                    <div style="font-size:0.85rem; color:var(--muted); word-break:break-all;" id="settingsWalletAddress">0x...</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rename Username -->
+              <div style="background:rgba(255,255,255,0.03); padding:20px; border-radius:12px; border:1px solid var(--card-border); margin-bottom:20px;">
+                <h3 style="margin-bottom:16px;"><i class="fa-solid fa-id-badge" style="color:#60a5fa;"></i> Change Username</h3>
+                <p style="color:var(--muted); font-size:0.87rem; margin-bottom:16px;">Update your on-chain display name. Your old username will be released and the new one will be registered on the blockchain.</p>
+                <div class="form-group">
+                  <label>New Username (3–32 characters)</label>
+                  <input type="text" id="settingsNewUsername" placeholder="e.g. satoshi_nakamoto" maxlength="32" />
+                </div>
+                <button id="btnSaveUsername" class="btn btn-primary" style="width:100%; padding:12px; justify-content:center; margin-top:8px;">
+                  <i class="fa-solid fa-floppy-disk"></i> Save Username
+                  <div id="settingsUsernameLoader" class="loader" style="display:none; width:16px; height:16px; margin-left:8px; border-width:2px;"></div>
+                </button>
+                <div id="settingsUsernameStatus" style="font-size:0.85rem; color:var(--muted); text-align:center; margin-top:10px;"></div>
+              </div>
+
+              <!-- Admin Shortcut (only for admin) -->
+              <div id="settingsAdminBlock" style="display:none; background:rgba(244,63,94,0.06); padding:20px; border-radius:12px; border:1px solid rgba(244,63,94,0.2);">
+                <h3 style="margin-bottom:12px; color:#f43f5e;"><i class="fa-solid fa-crown"></i> Admin Controls</h3>
+                <p style="color:var(--muted); font-size:0.87rem; margin-bottom:16px;">You are connected as the contract admin. Access the Admin Panel to manage plan pricing and withdraw funds.</p>
+                <button class="btn btn-danger" style="width:100%; padding:12px; justify-content:center;" onclick="goToAdminPanel()">
+                  <i class="fa-solid fa-screwdriver-wrench"></i> Open Admin Panel
+                </button>
+              </div>
+
+            </div>
+          </div>
+
         </div>
+      </div>
+    </div>
+    
+    <!-- Multi-selection Action Bar -->
+    <div id="multiSelectBar" class="multi-select-bar">
+      <div class="multi-select-count">
+        <i class="fa-solid fa-check-double" style="color: var(--accent);"></i>
+        <span id="multiSelectCountText">0 Selected</span>
+      </div>
+      <div class="multi-select-actions">
+        <button id="btnBulkMove" class="btn btn-ghost"><i class="fa-solid fa-folder-tree"></i> Move</button>
+        <button id="btnBulkTransfer" class="btn btn-ghost"><i class="fa-solid fa-handshake"></i> Transfer</button>
+        <button id="btnBulkDelete" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Delete</button>
+        <button id="btnBulkClear" class="btn btn-ghost" style="margin-left:8px;" title="Clear Selection"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
 
@@ -1702,6 +1931,70 @@
           </button>
         </div>
         <div id="moveStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+    
+    <!-- Bulk Move Files Modal -->
+    <div id="bulkMoveModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('bulkMoveModal')">&times;</button>
+        <h2>Bulk Move / Re-Categorize</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Move <span id="bulkMoveCount">0</span> selected files to a new folder and/or category on the blockchain.</p>
+        <div class="form-group">
+          <label>New Folder Path</label>
+          <input type="text" id="bulkMoveFolder" placeholder="e.g. /work/documents" />
+        </div>
+        <div class="form-group">
+          <label>New Category</label>
+          <input type="text" id="bulkMoveCategory" list="categoryOptions" placeholder="Type or select..." value="General" />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmBulkMoveBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <i class="fa-solid fa-folder-tree"></i> Move Selected Files
+            <div id="bulkMoveLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="bulkMoveStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+    
+    <!-- Bulk Transfer Files Modal -->
+    <div id="bulkTransferModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('bulkTransferModal')">&times;</button>
+        <h2>Bulk Transfer Ownership</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Transfer ownership of <span id="bulkTransferCount">0</span> selected files to a new wallet address.</p>
+        <div class="form-group">
+          <label>Recipient Address (0x...)</label>
+          <input type="text" id="bulkTransferAddress" placeholder="0x..." />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmBulkTransferBtn" class="btn btn-primary" style="justify-content:center; padding:14px;">
+            <i class="fa-solid fa-handshake"></i> Transfer Selected Files
+            <div id="bulkTransferLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="bulkTransferStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
+      </div>
+    </div>
+    
+    <!-- Bulk Delete Files Modal -->
+    <div id="bulkDeleteModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('bulkDeleteModal')">&times;</button>
+        <h2>Bulk Delete Files</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Are you sure you want to permanently delete <strong id="bulkDeleteCount">0</strong> selected files from the blockchain? This action cannot be undone.</p>
+        
+        <div class="form-group" style="margin-top:12px;">
+          <button id="confirmBulkDeleteBtn" class="btn btn-danger" style="justify-content:center; padding:14px; width:100%;">
+            <i class="fa-solid fa-trash"></i> Permanently Delete Selected
+            <div id="bulkDeleteLoader" class="loader"
+              style="display:none; width:18px; height:18px; border-width:2px; margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="bulkDeleteStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center;"></div>
       </div>
     </div>
 
@@ -1842,6 +2135,90 @@
       </div>
     </div>
 
+    <!-- Requests Modal -->
+    <div id="requestsModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('requestsModal')">&times;</button>
+        <h2><i class="fa-solid fa-hand-point-up" style="color:#a78bfa;"></i> Pending Requests</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin:0;">Approve or deny view access requests for your files.</p>
+        
+        <div style="margin-top: 10px;">
+            <div id="requestsLoader" class="loader" style="display:none; width:24px; height:24px; border-width:2px; margin: 20px auto; border-top-color:#a78bfa;"></div>
+            <div id="requestsList" class="access-list">
+              <!-- Requests will be populated here -->
+          </div>
+          <div id="requestsStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center; padding: 20px;">No pending requests found.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications Modal -->
+    <div id="notificationsModal" class="overlay">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('notificationsModal')">&times;</button>
+        <h2><i class="fa-solid fa-bell" style="color:#34d399;"></i> Notifications</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin:0;">Recent activity related to your account and files.</p>
+        
+        <div style="margin-top: 10px;">
+            <div id="notificationsLoader" class="loader" style="display:none; width:24px; height:24px; border-width:2px; margin: 20px auto; border-top-color:#34d399;"></div>
+            <div id="notificationsList" class="history-list" style="margin-top: 12px; max-height: 300px;">
+              <!-- Notifications will be populated here -->
+          </div>
+          <div id="notificationsStatusBox" style="font-size:0.85rem; color:var(--muted); text-align:center; padding: 20px;">No recent notifications.</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Username Registration Modal -->
+    <div id="usernameModal" class="overlay">
+      <div class="modal" style="max-width:440px;">
+        <h2><i class="fa-solid fa-id-badge" style="color:#a78bfa;"></i> Register Username</h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin:0 0 16px;">Pick a unique username for your DriveX account. This is permanent and linked to your wallet.</p>
+        <div class="form-group">
+          <label>Username (3–32 characters)</label>
+          <input type="text" id="usernameInput" placeholder="e.g. satoshi123" maxlength="32" />
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <button id="confirmUsernameBtn" class="btn btn-primary" style="justify-content:center;padding:14px;width:100%;">
+            <span>Register</span>
+            <div id="usernameLoader" class="loader" style="display:none;width:18px;height:18px;border-width:2px;margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="usernameStatusBox" style="font-size:0.85rem;color:var(--muted);text-align:center;margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Upgrade Plan Modal -->
+    <div id="upgradePlanModal" class="overlay">
+      <div class="modal" style="max-width:520px;">
+        <button class="modal-close" onclick="closeModal('upgradePlanModal')">&times;</button>
+        <h2><i class="fa-solid fa-rocket" style="color:#a78bfa;"></i> Upgrade Your Plan</h2>
+        <p style="color:var(--muted); font-size:0.9rem;">Select a storage plan. Payment is charged once in ETH and activates immediately.</p>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;" id="tierCards">
+          <!-- Tier cards injected via JS -->
+        </div>
+
+        <!-- Pro+ custom GB input (hidden unless Pro+ selected) -->
+        <div id="proPlusRow" style="display:none; margin-top:16px;">
+          <div class="form-group">
+            <label>Custom Storage (GB)</label>
+            <input type="number" id="proPlusGB" value="2" min="1" step="1" />
+          </div>
+          <p id="proPlusPrice" style="color:var(--muted); font-size:0.85rem; margin-top:6px;"></p>
+        </div>
+
+        <div style="margin-top:20px;">
+          <button id="confirmUpgradeBtn" class="btn btn-primary" style="width:100%;justify-content:center;padding:14px;" disabled>
+            <span id="upgradeBtnText">Select a Plan</span>
+            <div id="upgradeLoader" class="loader" style="display:none;width:18px;height:18px;border-width:2px;margin-left:8px;"></div>
+          </button>
+        </div>
+        <div id="upgradeStatusBox" style="font-size:0.85rem;color:var(--muted);text-align:center;margin-top:8px;"></div>
+      </div>
+    </div>
+
     <!-- Manage Access Modal -->
     <div id="manageAccessModal" class="overlay">
       <div class="modal">
@@ -1888,7 +2265,43 @@
               Close</button>
           </div>
         </div>
-        <div id="previewViewer"></div>
+        <div id="previewViewer" style="position:relative; background:#000; flex:1; border-radius:12px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
+          <!-- Media injected here -->
+        </div>
+        
+        <!-- Custom Media Player Controls (Hidden by default, shown for video/audio) -->
+        <div id="customMediaControls" class="media-controls" style="display:none; position:absolute; bottom:40px; left:50%; transform:translateX(-50%); width:90%; max-width:800px; background:rgba(15,15,20,0.85); backdrop-filter:blur(10px); padding:12px 20px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:100; flex-direction:column; gap:8px;">
+           <div style="display:flex; align-items:center; gap:16px; width:100%;">
+             <span id="mediaCurrentTime" style="font-family:monospace; font-size:0.85rem; color:#fff;">0:00</span>
+             <input type="range" id="mediaTimeline" min="0" max="100" value="0" style="flex:1; height:4px; appearance:none; background:rgba(255,255,255,0.2); border-radius:2px; outline:none; cursor:pointer;" />
+             <span id="mediaDuration" style="font-family:monospace; font-size:0.85rem; color:#fff;">0:00</span>
+           </div>
+           
+           <div style="display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:4px;">
+             <div style="display:flex; align-items:center; gap:12px;">
+                <button id="mediaPlayPause" class="btn btn-ghost" style="color:#fff; padding:8px; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+                  <i class="fa-solid fa-play" style="font-size:1.2rem;"></i>
+                </button>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <i id="mediaMuteToggle" class="fa-solid fa-volume-high" style="color:#fff; cursor:pointer; font-size:1.1rem; width:20px;"></i>
+                  <input type="range" id="mediaVolume" min="0" max="1" step="0.05" value="1" style="width:80px; height:4px; appearance:none; background:rgba(255,255,255,0.2); border-radius:2px; outline:none; cursor:pointer;" />
+                </div>
+             </div>
+             
+             <div style="display:flex; align-items:center; gap:16px;">
+                <select id="mediaSpeed" style="background:transparent; color:#fff; border:none; outline:none; cursor:pointer; font-size:0.9rem; font-weight:600;">
+                  <option value="0.5" style="color:#000;">0.5x</option>
+                  <option value="1" style="color:#000;" selected>1x</option>
+                  <option value="1.5" style="color:#000;">1.5x</option>
+                  <option value="2" style="color:#000;">2x</option>
+                </select>
+                <button id="mediaFullscreen" class="btn btn-ghost" style="color:#fff; padding:6px;">
+                  <i class="fa-solid fa-expand"></i>
+                </button>
+             </div>
+           </div>
+        </div>
+
       </div>
     </div>
 
