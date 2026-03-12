@@ -413,6 +413,7 @@ contract Drive {
         require(f.owner != address(0), "Already removed");
         address previous = f.owner;
         f.owner = address(0);
+        hashExists[f.contentHash] = false;
         _logHistory(id, "Deleted");
         emit FileRemoved(id, previous);
     }
@@ -426,6 +427,7 @@ contract Drive {
             if (f.owner != address(0)) {
                 address previous = f.owner;
                 f.owner = address(0);
+                hashExists[f.contentHash] = false;
                 _logHistory(id, "Deleted");
                 emit FileRemoved(id, previous);
             }

@@ -853,9 +853,11 @@ function syncCategories(allFiles) {
   });
 }
 
-async function loadCurrentView() {
+async function loadCurrentView(silent = false) {
   const grid = g('filesGrid');
-  grid.innerHTML = '<div style="grid-column: 1 / -1; display: flex; justify-content: center; padding: 40px;"><div class="loader" style="border-top-color:#a78bfa;"></div></div>';
+  if (!silent) {
+    grid.innerHTML = '<div style="grid-column: 1 / -1; display: flex; justify-content: center; padding: 40px;"><div class="loader" style="border-top-color:#a78bfa;"></div></div>';
+  }
   renderBreadcrumbs();
 
   let endpoint = '';
@@ -1295,7 +1297,7 @@ function renderArchitecture(allFiles) {
         try {
           const tx = await contract.restoreFile(f.id);
           await tx.wait();
-          loadCurrentView();
+          loadCurrentView(true);
         } catch (err) {
           await customAlert('Restore failed: ' + err.message);
         }
@@ -1312,7 +1314,7 @@ function renderArchitecture(allFiles) {
         try {
           const tx = await contract.removeFile(f.id);
           await tx.wait();
-          loadCurrentView();
+          loadCurrentView(true);
         } catch (err) {
           await customAlert('Delete failed: ' + err.message);
         }
@@ -1414,7 +1416,7 @@ g('confirmBulkMoveBtn').addEventListener('click', async () => {
       selectedFileIds.clear();
       updateMultiSelectUI();
       closeModal('bulkMoveModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = "Error: " + e.message;
@@ -1460,7 +1462,7 @@ g('confirmBulkTransferBtn').addEventListener('click', async () => {
       selectedFileIds.clear();
       updateMultiSelectUI();
       closeModal('bulkTransferModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = "Error: " + e.message;
@@ -1502,7 +1504,7 @@ g('confirmBulkDeleteBtn').addEventListener('click', async () => {
       selectedFileIds.clear();
       updateMultiSelectUI();
       closeModal('bulkDeleteModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = "Error: " + e.message;
@@ -1567,7 +1569,7 @@ g('ctxToggleStar').addEventListener('click', async () => {
   try {
     const tx = await contract.toggleStar(currentActionFile.id, { gasLimit: 300000 });
     await tx.wait();
-    loadCurrentView();
+    loadCurrentView(true);
   } catch (e) {
     await customAlert('Error toggling star: ' + e.message);
   }
@@ -1576,7 +1578,7 @@ g('ctxToggleStar').addEventListener('click', async () => {
 g('ctxFolderOpen').addEventListener('click', () => {
   if (currentActionFolder) {
     currentFolder = currentActionFolder;
-    loadCurrentView();
+    loadCurrentView(true);
   }
 });
 
@@ -1663,7 +1665,7 @@ g('confirmFolderRenameBtn').addEventListener('click', async () => {
         currentFolder = newPath + currentFolder.substring(currentActionFolder.length);
       }
       closeModal('renameFolderModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
 
   } catch (err) {
@@ -1687,7 +1689,7 @@ g('confirmFolderDeleteBtn').addEventListener('click', async () => {
     setTimeout(() => {
       virtualFolders = virtualFolders.filter(f => f !== currentActionFolder);
       closeModal('deleteFolderModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 500);
   } else {
     stat.innerHTML = '<span style="color:#ef4444">This folder contains active files on the blockchain network.<br/>You must delete or move all nested physical files manually first.</span>';
@@ -1783,7 +1785,7 @@ g('confirmRenameBtn').addEventListener('click', async () => {
     stat.innerText = 'File renamed successfully!';
     setTimeout(() => {
       closeModal('renameModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = 'Error: ' + e.message;
@@ -1806,7 +1808,7 @@ g('ctxTrash').addEventListener('click', async () => {
   try {
     const tx = await contract.trashFile(currentActionFile.id);
     await tx.wait();
-    loadCurrentView();
+    loadCurrentView(true);
   } catch (e) {
     await customAlert('Error moving to Bin: ' + e.message);
   }
@@ -1843,7 +1845,7 @@ g('confirmSetPriceBtn').addEventListener('click', async () => {
     stat.innerText = 'Price Updated Successfully!';
     setTimeout(() => {
       closeModal('setPriceModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = 'Error: ' + e.message;
@@ -1870,7 +1872,7 @@ g('confirmDeleteBtn').addEventListener('click', async () => {
     stat.innerText = 'File successfully deleted!';
     setTimeout(() => {
       closeModal('deleteModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = 'Error: ' + e.message;
@@ -2350,7 +2352,7 @@ g('confirmUploadBtn').addEventListener('click', async () => {
     setTimeout(() => {
       selectedFiles = [];
       closeModal('uploadModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
 
   } catch (e) {
@@ -2381,7 +2383,7 @@ g('confirmMoveBtn').addEventListener('click', async () => {
     stat.innerText = 'Move Successful!';
     setTimeout(() => {
       closeModal('moveModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = "Error Moving File: " + e.message;
@@ -2446,7 +2448,7 @@ g('confirmShareBtn').addEventListener('click', async () => {
     stat.innerText = 'Success!';
     setTimeout(() => {
       closeModal('shareModal');
-      loadCurrentView();
+      loadCurrentView(true);
     }, 1500);
   } catch (e) {
     stat.innerText = 'Error: ' + e.message;
@@ -2612,7 +2614,7 @@ async function buyFile(id, priceWei) {
       }
     }
 
-    loadCurrentView();
+    loadCurrentView(true);
   } catch (e) { await customAlert(e.message); }
 }
 
