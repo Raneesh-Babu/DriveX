@@ -602,6 +602,10 @@ g('categoryFilter').addEventListener('change', (e) => {
   loadCurrentView();
 });
 
+g('btnRefresh').addEventListener('click', () => {
+  loadCurrentView();
+});
+
 g('createFolderBtn').addEventListener('click', async () => {
   const name = await customPrompt("Enter new folder name:");
   if (name && name.trim()) {
@@ -3279,7 +3283,7 @@ function setupContractListeners() {
   if (_autoUpdateInterval) clearInterval(_autoUpdateInterval);
   _autoUpdateInterval = setInterval(() => {
     if (contract && currentAccount) {
-      loadCurrentView();
+      loadCurrentView(true); // silent refresh
     }
   }, 30000);
 
